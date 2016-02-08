@@ -110,24 +110,97 @@ PREDICATE(hdt_open, 2)
 }
 
 
-PREDICATE(hdt_destroy, 1)
+PREDICATE(hdt_close, 1)
 { hdt_wrapper *symb;
 
   if ( !get_hdt(A1, &symb) )
     return FALSE;
 
-  deleteHDT(symb->hdt);
+  deleteHDT(symb->hdt);				/* FIXME: Thread safety */
   symb->hdt = NULL;
 
   return TRUE;
 }
 
 
-PREDICATE(hdt_search, 4)
+#define S_S 0x01
+#define S_P 0x02
+#define S_O 0x04
+
+typedef struct
+{ unsigned flags;
+  IteratorTripleString *it;
+} search_it;
+
+
+static int
+get_search_string(term_t t, char **s, unsigned flag, unsigned *flagp)
+{ if ( PL_is_variable(t) )
+  { *s = (char*)"";
+    *flagp |= flag;
+    return TRUE;
+  } else
+  { size_t len;
+
+    return PL_get_nchars(t, &len, s, CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
+  }
+}
+
+static int
+unify_string(term_t t, const char *s)
+{ return PL_unify_chars(t, PL_ATOM|REP_UTF8, (size_t)-1, s);
+}
+
+
+PREDICATE_NONDET(hdt_search, 4)
 { hdt_wrapper *symb;
+  search_it ctx_buf = {0};
+  search_it *ctx;
+  int rc;
 
-  if ( !get_hdt(A1, &symb) )
-    return FALSE;
+  switch(PL_foreign_context(handle))
+  { case PL_FIRST_CALL:
+    { char *s, *p, *o;
 
-  return TRUE;
+      ctx = &ctx_buf;
+      if ( !get_hdt(A1, &symb) )
+	return FALSE;
+      if ( !get_search_string(A2, &s, S_S, &ctx->flags) ||
+	   !get_search_string(A3, &p, S_O, &ctx->flags) ||
+	   !get_search_string(A4, &o, S_P, &ctx->flags) )
+	return FALSE;
+      ctx->it = symb->hdt->search(s,p,o);
+      goto next;
+    }
+    case PL_REDO:
+      ctx = (search_it*)PL_foreign_context_address(handle);
+    next:
+    { if ( ctx->it->hasNext() )
+      { TripleString *triple = ctx->it->next();
+
+	if ( (!(ctx->flags&S_S) || unify_string(A2, triple->getSubject().c_str())) &&
+	     (!(ctx->flags&S_P) || unify_string(A3, triple->getPredicate().c_str())) &&
+	     (!(ctx->flags&S_O) || unify_string(A4, triple->getObject().c_str())) )
+	{ if ( ctx != &ctx_buf )
+	  { ctx = (search_it*)PL_malloc(sizeof(*ctx));
+	    *ctx = ctx_buf;
+	  }
+	  PL_retry_address(ctx);
+	}
+	rc = FALSE;
+	goto cleanup;
+      }
+    }
+    case PL_PRUNED:
+      ctx = (search_it*)PL_foreign_context_address(handle);
+      rc = TRUE;
+    cleanup:
+      if ( ctx->it )
+	delete ctx->it;
+      if ( ctx != &ctx_buf )
+	PL_free(ctx);
+      return rc;
+  }
+
+  return FALSE;
 }
