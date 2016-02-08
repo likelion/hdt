@@ -158,7 +158,7 @@ PREDICATE_NONDET(hdt_search, 4)
   search_it *ctx;
   int rc;
 
-  switch(PL_foreign_context(handle))
+  switch(PL_foreign_control(handle))
   { case PL_FIRST_CALL:
     { char *s, *p, *o;
 
@@ -181,7 +181,7 @@ PREDICATE_NONDET(hdt_search, 4)
 	if ( (!(ctx->flags&S_S) || unify_string(A2, triple->getSubject().c_str())) &&
 	     (!(ctx->flags&S_P) || unify_string(A3, triple->getPredicate().c_str())) &&
 	     (!(ctx->flags&S_O) || unify_string(A4, triple->getObject().c_str())) )
-	{ if ( ctx != &ctx_buf )
+	{ if ( ctx == &ctx_buf )
 	  { ctx = (search_it*)PL_malloc(sizeof(*ctx));
 	    *ctx = ctx_buf;
 	  }
