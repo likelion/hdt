@@ -6,6 +6,7 @@
 SOBJ=	$(PACKSODIR)/hdt4pl.$(SOEXT)
 CFLAGS+=-I/home/janw/3rdparty/hdt-cpp/hdt-lib/include -g
 LIBS=	-L/home/janw/3rdparty/hdt-cpp/hdt-lib -lhdt
+LD=g++
 
 all:	$(SOBJ)
 
