@@ -4,7 +4,7 @@
 # buildenv.sh (on the fly)
 #
 SOBJ=	$(PACKSODIR)/hdt4pl.$(SOEXT)
-CFLAGS+=-std=c99 -I/home/janw/3rdparty/hdt-cpp/hdt-lib/include -g
+CFLAGS+=-I/home/janw/3rdparty/hdt-cpp/hdt-lib/include -g
 LIBS=	-L/home/janw/3rdparty/hdt-cpp/hdt-lib -lhdt
 
 all:	$(SOBJ)

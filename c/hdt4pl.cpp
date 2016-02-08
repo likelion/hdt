@@ -1,3 +1,4 @@
+#include <SWI-Stream.h>
 #include <SWI-cpp.h>
 #include <iostream>
 #include <HDTManager.hpp>
@@ -5,26 +6,26 @@
 using namespace std;
 using namespace hdt;
 
-static void deleteHDT(HDT hdt);
+static void deleteHDT(HDT *hdt);
 
 extern "C" {
 
 typedef struct hdt_wrapper
-{ atom_t		symbol;		/* Associated symbol */
-  hdt_env	       *hdt;
+{ atom_t	symbol;			/* Associated symbol */
+  HDT	       *hdt;
 } hdt_wrapper;
 
 
 static void
 acquire_hdt(atom_t symbol)
-{ hdt_wrapper *symb = PL_blob_data(symbol, NULL, NULL);
+{ hdt_wrapper *symb = (hdt_wrapper*)PL_blob_data(symbol, NULL, NULL);
   symb->symbol = symbol;
 }
 
 
 static int
 release_hdt(atom_t symbol)
-{ hdt_wrapper *symb = PL_blob_data(symbol, NULL, NULL);
+{ hdt_wrapper *symb = (hdt_wrapper*)PL_blob_data(symbol, NULL, NULL);
 
   if ( symb->hdt )
   { deleteHDT(symb->hdt);
@@ -37,8 +38,8 @@ release_hdt(atom_t symbol)
 
 static int
 compare_hdts(atom_t a, atom_t b)
-{ hdt_wrapper *ara = PL_blob_data(a, NULL, NULL);
-  hdt_wrapper *arb = PL_blob_data(b, NULL, NULL);
+{ hdt_wrapper *ara = (hdt_wrapper*)PL_blob_data(a, NULL, NULL);
+  hdt_wrapper *arb = (hdt_wrapper*)PL_blob_data(b, NULL, NULL);
 
   return ( ara > arb ?  1 :
 	   ara < arb ? -1 : 0
@@ -48,7 +49,7 @@ compare_hdts(atom_t a, atom_t b)
 
 static int
 write_hdt(IOSTREAM *s, atom_t symbol, int flags)
-{ hdt_wrapper *symb = PL_blob_data(symbol, NULL, NULL);
+{ hdt_wrapper *symb = (hdt_wrapper*)PL_blob_data(symbol, NULL, NULL);
 
   Sfprintf(s, "<hdt>(%p)", symb);
 
@@ -58,7 +59,7 @@ write_hdt(IOSTREAM *s, atom_t symbol, int flags)
 static PL_blob_t hdt_blob =
 { PL_BLOB_MAGIC,
   PL_BLOB_NOCOPY,
-  "hdt",
+  (char*)"hdt",
   release_hdt,
   compare_hdts,
   write_hdt,
@@ -72,9 +73,9 @@ get_hdt(term_t t, hdt_wrapper **symb_ptr)
   void *data;
 
   if ( PL_get_blob(t, &data, NULL, &type) && type == &hdt_blob)
-  { hdt_wrapper *symb = data;
+  { hdt_wrapper *symb = (hdt_wrapper*)data;
 
-    if ( !symb->hdt->control )
+    if ( !symb->hdt )
       return PL_existence_error("hdt", t);
     *symb_ptr = symb;
 
@@ -87,7 +88,7 @@ get_hdt(term_t t, hdt_wrapper **symb_ptr)
 }/* end extern "C" */
 
 static void
-deleteHDT(HDT hdt)
+deleteHDT(HDT *hdt)
 { delete hdt;
 }
 
@@ -100,7 +101,7 @@ deleteHDT(HDT hdt)
 
 PREDICATE(hdt_open, 2)
 { HDT *hdt = HDTManager::mapHDT(A2);
-  hdt_wrapper *symb = PL_malloc(sizeof(*symb));
+  hdt_wrapper *symb = (hdt_wrapper*)PL_malloc(sizeof(*symb));
 
   memset(symb, 0, sizeof(*symb));
   symb->hdt = hdt;
