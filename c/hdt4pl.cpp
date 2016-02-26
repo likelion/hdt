@@ -2,6 +2,7 @@
 #include <SWI-cpp.h>
 #include <iostream>
 #include <HDTManager.hpp>
+#include <assert.h>
 
 using namespace std;
 using namespace hdt;
@@ -9,6 +10,9 @@ using namespace hdt;
 static void deleteHDT(HDT *hdt);
 
 extern "C" {
+
+static functor_t FUNCTOR_rdftype2;
+static functor_t FUNCTOR_rdflang2;
 
 typedef struct hdt_wrapper
 { atom_t	symbol;			/* Associated symbol */
@@ -85,6 +89,12 @@ get_hdt(term_t t, hdt_wrapper **symb_ptr)
   return PL_type_error("hdt", t);
 }
 
+install_t
+install_hdt4pl(void)
+{ FUNCTOR_rdftype2 = PL_new_functor(PL_new_atom("^^"), 2);
+  FUNCTOR_rdflang2 = PL_new_functor(PL_new_atom("@"), 2);
+}
+
 }/* end extern "C" */
 
 static void
@@ -152,6 +162,80 @@ unify_string(term_t t, const char *s)
 }
 
 
+static const char *
+read_echar(const char *s, int *cp)
+{ switch(*s++)
+  { case 't':   *cp = '\t'; return s;
+    case 'b':   *cp = '\b'; return s;
+    case 'n':   *cp = '\n'; return s;
+    case 'r':   *cp = '\r'; return s;
+    case 'f':   *cp = '\f'; return s;
+    case '\\':  *cp = '\\'; return s;
+    case '"':   *cp = '\"'; return s;
+    case '\'':  *cp = '\''; return s;
+    case 'u':				/* Should not happen */
+    case 'U':
+    default:
+      assert(0);
+  }
+
+  return NULL;
+}
+
+
+static int
+unify_object(term_t t, const char *s)
+{ if ( s[0] == '"' )
+  { const char *e;
+    char buf[256];
+    char *ls, *os;
+    size_t lin = strlen(s);
+    int rc;
+
+    ls = (lin < sizeof(buf) ? buf : (char*)malloc(lin));
+    if ( !ls )
+      return PL_resource_error("memory");
+
+    for(s++, os=ls; *s != '"'; )
+    { if ( *s == '\\' )
+      { int c;
+
+	s = read_echar(s, &c);
+	*os++ = c;
+      } else
+      *os++ = *s++;
+    }
+    *os++ = '\0';			/* 0-bytes (\u0000) seem to be ignored */
+
+    s++;
+    if ( (s[0] == '^' && s[1] == '^') )
+    { s += 2;
+
+      rc = PL_unify_term(t, PL_FUNCTOR, FUNCTOR_rdftype2,
+			      PL_UTF8_STRING, ls,
+			      PL_UTF8_CHARS, s);
+    } else if ( s[0] == '@' )
+    { s += 1;
+
+      rc = PL_unify_term(t, PL_FUNCTOR, FUNCTOR_rdflang2,
+			      PL_UTF8_STRING, ls,
+			      PL_UTF8_CHARS, s);
+    } else
+    { assert(0);
+      rc = FALSE;
+    }
+
+    if ( ls != buf )
+      free(ls);
+
+    return rc;
+  }
+
+  return PL_unify_chars(t, PL_ATOM|REP_UTF8, (size_t)-1, s);
+}
+
+
+
 PREDICATE_NONDET(hdt_search, 4)
 { hdt_wrapper *symb;
   search_it ctx_buf = {0};
@@ -180,7 +264,7 @@ PREDICATE_NONDET(hdt_search, 4)
 
 	if ( (!(ctx->flags&S_S) || unify_string(A2, triple->getSubject().c_str())) &&
 	     (!(ctx->flags&S_P) || unify_string(A3, triple->getPredicate().c_str())) &&
-	     (!(ctx->flags&S_O) || unify_string(A4, triple->getObject().c_str())) )
+	     (!(ctx->flags&S_O) || unify_object(A4, triple->getObject().c_str())) )
 	{ if ( ctx == &ctx_buf )
 	  { ctx = (search_it*)PL_malloc(sizeof(*ctx));
 	    *ctx = ctx_buf;
