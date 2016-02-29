@@ -77,7 +77,13 @@
 hdt_open(HDT, File) :-
 	hdt_open(HDT, File, []).
 
-%%	hdt_subject(+HDT, -Subject) is nondet.
+%%	hdt_subject(+HDT, -IRI) is nondet.
+%%	hdt_predicate(+HDT, -IRI) is nondet.
+%%	hdt_object(+HDT, -Object) is nondet.
+%%	hdt_shared(+HDT, -IRI) is nondet.
+%
+%	Enumerate possible values for the   individual components of the
+%	triples represented in the HDT.
 
 hdt_subject(HDT, Subject) :-
 	hdt_column_(HDT, subject, Var),
@@ -94,6 +100,21 @@ hdt_shared(HDT, Subject) :-
 hdt_object(HDT, Subject) :-
 	hdt_object_(HDT, Var),
 	Var = Subject.
+
+%%	hdt_property(+HDT, ?Property) is nondet.
+%
+%	True of Property is a property of HTD.  Defined properties are
+%
+%	  - mapping(-Mapping)
+%	  - max_id(-ID))
+%	  - max_object_id(-ID))
+%	  - max_predicate_id(-ID))
+%	  - max_subject_id(-ID))
+%	  - objects(-Count))
+%	  - predicates(-Count))
+%	  - shared(-Count))
+%	  - subjects(-Count))
+%	  - elements(-Count))
 
 hdt_property(HDT, Property) :-
 	hdt_property(Property),
