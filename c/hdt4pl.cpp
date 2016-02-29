@@ -162,73 +162,43 @@ unify_string(term_t t, const char *s)
 }
 
 
-static const char *
-read_echar(const char *s, int *cp)
-{ switch(*s++)
-  { case 't':   *cp = '\t'; return s;
-    case 'b':   *cp = '\b'; return s;
-    case 'n':   *cp = '\n'; return s;
-    case 'r':   *cp = '\r'; return s;
-    case 'f':   *cp = '\f'; return s;
-    case '\\':  *cp = '\\'; return s;
-    case '"':   *cp = '\"'; return s;
-    case '\'':  *cp = '\''; return s;
-    case 'u':				/* Should not happen */
-    case 'U':
-    default:
-      assert(0);
-  }
-
-  return NULL;
-}
-
-
 static int
 unify_object(term_t t, const char *s)
 { if ( s[0] == '"' )
-  { const char *e;
-    char buf[256];
-    char *ls, *os;
-    size_t lin = strlen(s);
-    int rc;
+  { const char *e = s+strlen(s)-1;
 
-    ls = (lin < sizeof(buf) ? buf : (char*)malloc(lin));
-    if ( !ls )
-      return PL_resource_error("memory");
+    for(;;)
+    { while( e>s && *e != '"' )
+	e--;
+      if ( e > s )
+      { if ( strncmp(e+1, "^^<", 3) == 0 )
+	{ term_t av = PL_new_term_refs(2);
+	  int rc;
 
-    for(s++, os=ls; *s != '"'; )
-    { if ( *s == '\\' )
-      { int c;
+	  s++;
+	  rc = PL_unify_chars(av+0, PL_STRING|REP_UTF8, e-s, s);
+	  e += 4;
+	  rc = rc && PL_unify_chars(av+1, PL_ATOM|REP_UTF8, strlen(e)-1, e);
+	  rc = rc && PL_cons_functor_v(av, FUNCTOR_rdftype2, av);
+	  rc = rc && PL_unify(t, av);
+	  return rc;
+	} else if ( strncmp(e+1, "@", 1) == 0 )
+	{ term_t av = PL_new_term_refs(2);
+	  int rc;
 
-	s = read_echar(s, &c);
-	*os++ = c;
+	  s++;
+	  rc = PL_unify_chars(av+0, PL_STRING|REP_UTF8, e-s, s);
+	  e += 2;
+	  rc = rc && PL_unify_chars(av+1, PL_ATOM|REP_UTF8, (size_t)-1, e);
+	  rc = rc && PL_cons_functor_v(av, FUNCTOR_rdflang2, av);
+	  rc = rc && PL_unify(t, av);
+	  return rc;
+	}
       } else
-      *os++ = *s++;
+      { assert(0);
+	return FALSE;
+      }
     }
-    *os++ = '\0';			/* 0-bytes (\u0000) seem to be ignored */
-
-    s++;
-    if ( (s[0] == '^' && s[1] == '^') )
-    { s += 2;
-
-      rc = PL_unify_term(t, PL_FUNCTOR, FUNCTOR_rdftype2,
-			      PL_UTF8_STRING, ls,
-			      PL_UTF8_CHARS, s);
-    } else if ( s[0] == '@' )
-    { s += 1;
-
-      rc = PL_unify_term(t, PL_FUNCTOR, FUNCTOR_rdflang2,
-			      PL_UTF8_STRING, ls,
-			      PL_UTF8_CHARS, s);
-    } else
-    { assert(0);
-      rc = FALSE;
-    }
-
-    if ( ls != buf )
-      free(ls);
-
-    return rc;
   }
 
   return PL_unify_chars(t, PL_ATOM|REP_UTF8, (size_t)-1, s);
