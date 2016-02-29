@@ -25,6 +25,10 @@ static atom_t ATOM_elements;
 static atom_t ATOM_subject;
 static atom_t ATOM_predicate;
 static atom_t ATOM_object;
+static atom_t ATOM_access;
+static atom_t ATOM_indexed;
+static atom_t ATOM_map;
+static atom_t ATOM_load;
 
 static functor_t FUNCTOR_rdftype2;
 static functor_t FUNCTOR_rdflang2;
@@ -122,6 +126,10 @@ install_hdt4pl(void)
   MKATOM(subject);
   MKATOM(predicate);
   MKATOM(object);
+  MKATOM(access);
+  MKATOM(indexed);
+  MKATOM(map);
+  MKATOM(load);
 
   FUNCTOR_rdftype2 = PL_new_functor(PL_new_atom("^^"), 2);
   FUNCTOR_rdflang2 = PL_new_functor(PL_new_atom("@"), 2);
@@ -141,10 +149,49 @@ deleteHDT(HDT *hdt)
 		 *******************************/
 
 
-PREDICATE(hdt_open, 2)
-{ HDT *hdt = HDTManager::mapHDT(A2);
-  hdt_wrapper *symb = (hdt_wrapper*)PL_malloc(sizeof(*symb));
+PREDICATE(hdt_open, 3)
+{ HDT *hdt;
+  atom_t access = ATOM_map;
+  int indexed = TRUE;
+  PlTail options(A3);
+  PlTerm opt;
 
+  while(options.next(opt))
+  { atom_t name;
+    size_t arity;
+
+    if ( PL_get_name_arity(opt, &name, &arity) && arity == 1 )
+    { PlTerm ov = opt[1];
+
+      if ( name == ATOM_access )
+      { if ( !PL_get_atom_ex(ov, &access) )
+	  return FALSE;
+      } else if ( name == ATOM_indexed )
+      { if ( !PL_get_bool_ex(ov, &indexed) )
+	  return FALSE;
+      }
+    } else
+      return PL_type_error("option", opt);
+  }
+
+  if ( access == ATOM_map )
+  { if ( indexed )
+      hdt = HDTManager::mapIndexedHDT(A2);
+    else
+      hdt = HDTManager::mapHDT(A2);
+  } else if ( access == ATOM_load )
+  { if ( indexed )
+      hdt = HDTManager::loadIndexedHDT(A2);
+    else
+      hdt = HDTManager::loadHDT(A2);
+  } else
+  { PlTerm ex;
+
+    PL_put_atom(ex, access);
+    return PL_domain_error("hdt_access", ex);
+  }
+
+  hdt_wrapper *symb = (hdt_wrapper*)PL_malloc(sizeof(*symb));
   memset(symb, 0, sizeof(*symb));
   symb->hdt = hdt;
 

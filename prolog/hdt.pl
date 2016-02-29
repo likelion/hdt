@@ -1,5 +1,6 @@
 :- module(hdt,
 	  [ hdt_open/2,			% -HDT, +Path
+	    hdt_open/3,			% -HDT, +Path, +Options
 	    hdt_close/1,		% +HDT
 	    hdt_search/4,		% +HDT, ?S,?P,?O
 
@@ -15,6 +16,9 @@
 	  ]).
 
 :- use_foreign_library(foreign(hdt4pl)).
+
+hdt_open(HDT, File) :-
+	hdt_open(HDT, File, []).
 
 hdt_subject(HDT, Subject) :-
 	hdt_column_(HDT, subject, Var),
