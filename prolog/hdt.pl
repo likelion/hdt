@@ -52,3 +52,11 @@ hdt_property(subjects(_)).
 hdt_property(elements(_)).
 
 
+		 /*******************************
+		 *	      MESSAGES		*
+		 *******************************/
+
+:- multifile prolog:error_message//1.
+
+prolog:error_message(hdt_error(Message)) -->
+	[ 'HDT: ~w'-[Message] ].

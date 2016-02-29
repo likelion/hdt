@@ -142,6 +142,12 @@ deleteHDT(HDT *hdt)
 { delete hdt;
 }
 
+static int
+hdt_error(const char *e)
+{ PlCompound f("hdt_error", PlTermv(e));
+
+  return PL_raise_exception(PlCompound("error", PlTermv(f, PlTerm())));
+}
 
 
 		 /*******************************
@@ -174,21 +180,27 @@ PREDICATE(hdt_open, 3)
       return PL_type_error("option", opt);
   }
 
-  if ( access == ATOM_map )
-  { if ( indexed )
-      hdt = HDTManager::mapIndexedHDT(A2);
-    else
-      hdt = HDTManager::mapHDT(A2);
-  } else if ( access == ATOM_load )
-  { if ( indexed )
-      hdt = HDTManager::loadIndexedHDT(A2);
-    else
-      hdt = HDTManager::loadHDT(A2);
-  } else
-  { PlTerm ex;
+  try
+  { if ( access == ATOM_map )
+    { if ( indexed )
+	hdt = HDTManager::mapIndexedHDT(A2);
+      else
+	hdt = HDTManager::mapHDT(A2);
+    } else if ( access == ATOM_load )
+    { if ( indexed )
+	hdt = HDTManager::loadIndexedHDT(A2);
+      else
+	hdt = HDTManager::loadHDT(A2);
+    } else
+    { PlTerm ex;
 
-    PL_put_atom(ex, access);
-    return PL_domain_error("hdt_access", ex);
+      PL_put_atom(ex, access);
+      return PL_domain_error("hdt_access", ex);
+    }
+  } catch (char *e)
+  { return hdt_error(e);
+  } catch (const char *e)
+  { return hdt_error(e);
   }
 
   hdt_wrapper *symb = (hdt_wrapper*)PL_malloc(sizeof(*symb));
