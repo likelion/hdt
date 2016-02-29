@@ -477,3 +477,47 @@ PREDICATE_NONDET(hdt_object_, 2)
       return TRUE;
   }
 }
+
+
+/** hdt_string_id(+HDT, +Role, ?String, ?Id)
+*/
+
+PREDICATE(hdt_string_id, 4)
+{ hdt_wrapper *symb;
+  atom_t role;
+  TripleComponentRole roleid;
+  size_t len; char *s;
+
+  if ( !get_hdt(A1, &symb) )
+    return FALSE;
+
+  if ( !PL_get_atom_ex(A2, &role) )
+    return FALSE;
+  if ( role == ATOM_subject )
+    roleid = SUBJECT;
+  else if ( role == ATOM_predicate )
+    roleid = PREDICATE;
+  else if ( role == ATOM_object )
+    roleid = OBJECT;
+  else
+    return PL_domain_error("hdt_role", A2);
+
+  Dictionary *dict = symb->hdt->getDictionary();
+
+  if ( !PL_is_variable(A3) )
+  { if ( PL_get_nchars(A3, &len, &s, CVT_ATOM|REP_UTF8|CVT_EXCEPTION) )
+    { std::string str(s);
+      unsigned int id = dict->stringToId(str, roleid);
+
+      if ( id )
+	return (A4 = (long)id);
+    }
+  } else
+  { std::string str = dict->idToString((unsigned int)(long)A4, roleid);
+
+    if ( !str.empty() )
+      return (A3 = str.c_str());
+  }
+
+  return FALSE;
+}
