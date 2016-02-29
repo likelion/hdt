@@ -1,3 +1,4 @@
+#define PL_ARITY_AS_SIZE 1
 #include <SWI-Stream.h>
 #include <SWI-cpp.h>
 #include <iostream>
@@ -10,6 +11,17 @@ using namespace hdt;
 static void deleteHDT(HDT *hdt);
 
 extern "C" {
+
+static atom_t ATOM_mapping;
+static atom_t ATOM_max_id;
+static atom_t ATOM_max_object_id;
+static atom_t ATOM_max_predicate_id;
+static atom_t ATOM_max_subject_id;
+static atom_t ATOM_objects;
+static atom_t ATOM_predicates;
+static atom_t ATOM_shared;
+static atom_t ATOM_subjects;
+static atom_t ATOM_elements;
 
 static functor_t FUNCTOR_rdftype2;
 static functor_t FUNCTOR_rdflang2;
@@ -89,9 +101,23 @@ get_hdt(term_t t, hdt_wrapper **symb_ptr)
   return PL_type_error("hdt", t);
 }
 
+
+#define MKATOM(a) ATOM_ ## a = PL_new_atom(#a)
+
 install_t
 install_hdt4pl(void)
-{ FUNCTOR_rdftype2 = PL_new_functor(PL_new_atom("^^"), 2);
+{ MKATOM(mapping);
+  MKATOM(max_id);
+  MKATOM(max_object_id);
+  MKATOM(max_predicate_id);
+  MKATOM(max_subject_id);
+  MKATOM(objects);
+  MKATOM(predicates);
+  MKATOM(shared);
+  MKATOM(subjects);
+  MKATOM(elements);
+
+  FUNCTOR_rdftype2 = PL_new_functor(PL_new_atom("^^"), 2);
   FUNCTOR_rdflang2 = PL_new_functor(PL_new_atom("@"), 2);
 }
 
@@ -257,4 +283,47 @@ PREDICATE_NONDET(hdt_search, 4)
   }
 
   return FALSE;
+}
+
+
+		 /*******************************
+		 *      DICTIONARY ACCESS	*
+		 *******************************/
+
+PREDICATE(hdt_property_, 2)
+{ hdt_wrapper *symb;
+  atom_t name; size_t arity;
+
+  if ( !get_hdt(A1, &symb) )
+    return FALSE;
+
+  if ( PL_get_name_arity(A2, &name, &arity) )
+  { PlTerm a = A2[1];
+    Dictionary *dict = symb->hdt->getDictionary();
+
+    if ( name == ATOM_mapping )
+      return (a = (long)dict->getMapping());
+    else if ( name == ATOM_max_id )
+      return (a = (long)dict->getMaxID());
+    else if ( name == ATOM_max_object_id )
+      return (a = (long)dict->getMaxObjectID());
+    else if ( name == ATOM_max_predicate_id )
+      return (a = (long)dict->getMaxPredicateID());
+    else if ( name == ATOM_max_subject_id )
+      return (a = (long)dict->getMaxSubjectID());
+    else if ( name == ATOM_objects )
+      return (a = (long)dict->getNobjects());
+    else if ( name == ATOM_predicates )
+      return (a = (long)dict->getNpredicates());
+    else if ( name == ATOM_shared )
+      return (a = (long)dict->getNshared());
+    else if ( name == ATOM_subjects )
+      return (a = (long)dict->getNsubjects());
+    else if ( name == ATOM_elements )
+      return (a = (long)dict->getNumberOfElements());
+    else
+      return PL_domain_error("hdt_property", A2);
+  }
+
+  return PL_type_error("compound", A2);
 }
