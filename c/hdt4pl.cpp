@@ -22,6 +22,9 @@ static atom_t ATOM_predicates;
 static atom_t ATOM_shared;
 static atom_t ATOM_subjects;
 static atom_t ATOM_elements;
+static atom_t ATOM_subject;
+static atom_t ATOM_predicate;
+static atom_t ATOM_object;
 
 static functor_t FUNCTOR_rdftype2;
 static functor_t FUNCTOR_rdflang2;
@@ -116,6 +119,9 @@ install_hdt4pl(void)
   MKATOM(shared);
   MKATOM(subjects);
   MKATOM(elements);
+  MKATOM(subject);
+  MKATOM(predicate);
+  MKATOM(object);
 
   FUNCTOR_rdftype2 = PL_new_functor(PL_new_atom("^^"), 2);
   FUNCTOR_rdflang2 = PL_new_functor(PL_new_atom("@"), 2);
@@ -326,4 +332,89 @@ PREDICATE(hdt_property_, 2)
   }
 
   return PL_type_error("compound", A2);
+}
+
+
+PREDICATE_NONDET(hdt_column_, 3)
+{ IteratorUCharString *it;
+
+  switch(PL_foreign_control(handle))
+  { case PL_FIRST_CALL:
+    { hdt_wrapper *symb;
+      atom_t a;
+
+      if ( !get_hdt(A1, &symb) ||
+	   !PL_get_atom_ex(A2, &a) )
+	return FALSE;
+
+      Dictionary *dict = symb->hdt->getDictionary();
+      if ( a == ATOM_subject )
+	it = dict->getSubjects();
+      else if ( a == ATOM_predicate )
+	it = dict->getPredicates();
+      else if ( a == ATOM_shared )
+	it = dict->getShared();
+      else if ( a == ATOM_object )
+	it = dict->getObjects();
+      else
+	return PL_domain_error("hdt_column", A2);
+
+      goto next;
+    }
+    case PL_REDO:
+      it = (IteratorUCharString*)PL_foreign_context_address(handle);
+    next:
+      if ( it->hasNext() )
+      { unsigned char *s = it->next();
+	int rc;
+
+	rc = PL_unify_chars(A3, PL_ATOM|REP_UTF8, (size_t)-1, (const char*)s);
+	it->freeStr(s);
+	if ( rc )
+	  PL_retry_address((void*)it);
+      }
+      delete it;
+      return FALSE;
+    case PL_PRUNED:
+      it = (IteratorUCharString*)PL_foreign_context_address(handle);
+      delete it;
+      return TRUE;
+  }
+}
+
+
+PREDICATE_NONDET(hdt_object_, 2)
+{ IteratorUCharString *it;
+  uintptr_t mask = 0;
+
+  switch(PL_foreign_control(handle))
+  { case PL_FIRST_CALL:
+    { hdt_wrapper *symb;
+      atom_t a;
+
+      if ( !get_hdt(A1, &symb) )
+	return FALSE;
+
+      it = symb->hdt->getDictionary()->getObjects();
+      goto next;
+    }
+    case PL_REDO:
+      it = (IteratorUCharString*)PL_foreign_context_address(handle);
+    next:
+      if ( it->hasNext() )
+      { unsigned char *s = it->next();
+	int rc;
+
+	rc = unify_object(A2, (const char*)s);
+	it->freeStr(s);
+	if ( rc )
+	  PL_retry_address((void*)it);
+      }
+      delete it;
+      return FALSE;
+    case PL_PRUNED:
+      it = (IteratorUCharString*)PL_foreign_context_address(handle);
+      delete it;
+      return TRUE;
+  }
 }
