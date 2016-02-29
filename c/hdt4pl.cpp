@@ -321,11 +321,11 @@ PREDICATE_NONDET(hdt_search, 4)
       ctx = (search_it*)PL_foreign_context_address(handle);
     next:
     { if ( ctx->it->hasNext() )
-      { TripleString *triple = ctx->it->next();
+      { TripleString *t = ctx->it->next();
 
-	if ( (!(ctx->flags&S_S) || unify_string(A2, triple->getSubject().c_str())) &&
-	     (!(ctx->flags&S_P) || unify_string(A3, triple->getPredicate().c_str())) &&
-	     (!(ctx->flags&S_O) || unify_object(A4, triple->getObject().c_str())) )
+	if ( (!(ctx->flags&S_S) || unify_string(A2, t->getSubject().c_str())) &&
+	     (!(ctx->flags&S_P) || unify_string(A3, t->getPredicate().c_str())) &&
+	     (!(ctx->flags&S_O) || unify_object(A4, t->getObject().c_str())) )
 	{ if ( ctx == &ctx_buf )
 	  { ctx = (search_it*)PL_malloc(sizeof(*ctx));
 	    *ctx = ctx_buf;
