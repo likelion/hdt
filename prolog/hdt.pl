@@ -51,6 +51,8 @@
 	    op(110, xfx, @),		% must be above .
 	    op(650, xfx, ^^)		% must be above :
 	  ]).
+:- use_module(library(semweb/rdf_db)).
+:- use_module(library(sgml)).
 
 :- use_foreign_library(foreign(hdt4pl)).
 
@@ -90,7 +92,28 @@ hdt_search(HDT, S, P, O) :-
 %	True if <S,P,O> is a triple in the header of HDT.
 
 hdt_header(HDT, S, P, O) :-
-	hdt_search(HDT, header, S, P, O).
+	hdt_search(HDT, header, S, P, O0),
+	header_object(O0, O).
+
+header_object(O0, O) :-
+	string(O0), !,
+	header_untyped_object(O0, O).
+header_object(O, O).
+
+header_untyped_object(O0, O) :-
+	catch(xsd_number_string(N, O0),
+	      error(syntax_error(xsd_number), _),
+	      fail), !,
+	(   integer(N)
+	->  rdf_equal(O, N^^xsd:integer)
+	;   rdf_equal(O, N^^xsd:float)
+	).
+header_untyped_object(O0, O) :-
+	catch(xsd_time_string(Term, Type, O0),
+	      error(_,_), fail), !,
+	O = Term^^Type.
+header_untyped_object(S, O) :-
+	rdf_equal(O, S^^xsd:string).
 
 %%	hdt_subject(+HDT, -IRI) is nondet.
 %%	hdt_predicate(+HDT, -IRI) is nondet.
