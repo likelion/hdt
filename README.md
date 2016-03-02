@@ -14,7 +14,7 @@ on most Unix-like machines.  Installation on Windows requires more
 creativity.
 
   - Install the HDT library
-    - clone https:github.com/rdfhdt/hdt-cpp.git
+    - clone https//:github.com/rdfhdt/hdt-cpp.git
     - Edit Makefile to suit your needs.  You can keep the
       dependencies to the minimum.  You do need to add
       `-fPIC` to `FLAGS`
@@ -25,7 +25,7 @@ creativity.
       ```
       git clone https://github.com/JanWielemaker/hdt4swipl hdt
       ```
-    - Edit Makefile, variable `HDTHOME` to point to the location
+    - Edit Makefile variable `HDTHOME` to point to the location
       of your built HDT library.
     - Start SWI-Prolog and run
 
