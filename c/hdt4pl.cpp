@@ -42,7 +42,8 @@
 using namespace std;
 using namespace hdt;
 
-static void deleteHDT(HDT *hdt);
+static void	deleteHDT(HDT *hdt);
+static int	get_triple_role(term_t t, TripleComponentRole *role);
 
 extern "C" {
 
@@ -411,6 +412,41 @@ PREDICATE_NONDET(hdt_search, 5)
 }
 
 
+/** hdt_suggestions(+HDT, +From, +Role, +MaxCount, -Suggestions)
+*/
+
+PREDICATE(hdt_suggestions, 5)
+{ hdt_wrapper *symb;
+  TripleComponentRole role;
+  char *from;
+  size_t len;
+  int max_count;
+  std::vector<string> out;
+
+  if ( !get_hdt(A1, &symb) ||
+       !PL_get_nchars(A2, &len, &from,
+		      CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8) ||
+       !get_triple_role(A3, &role) ||
+       !PL_get_integer_ex(A4, &max_count) )
+    return FALSE;
+
+  symb->hdt->getDictionary()->getSuggestions(from, role, out, max_count);
+
+  term_t tail = PL_copy_term_ref(A5);
+  term_t head = PL_new_term_ref();
+  for(std::vector<string>::iterator it = out.begin();
+      it != out.end();
+      ++it)
+  { if ( !PL_unify_list(tail,head,tail) ||
+	 !(role == OBJECT ? unify_object(head, it->c_str())
+			  : unify_string(head, it->c_str())) )
+      return FALSE;
+  }
+
+  return PL_unify_nil(tail);
+}
+
+
 		 /*******************************
 		 *      DICTIONARY ACCESS	*
 		 *******************************/
@@ -539,28 +575,36 @@ PREDICATE_NONDET(hdt_object_, 2)
 }
 
 
+static int
+get_triple_role(term_t t, TripleComponentRole *role)
+{ atom_t name;
+
+  if ( !PL_get_atom_ex(t, &name) )
+    return FALSE;
+  if ( name == ATOM_subject )
+    *role = SUBJECT;
+  else if ( name == ATOM_predicate )
+    *role = PREDICATE;
+  else if ( name == ATOM_object )
+    *role = OBJECT;
+  else
+    return PL_domain_error("hdt_role", t);
+
+  return TRUE;
+}
+
+
 /** hdt_string_id(+HDT, +Role, ?String, ?Id)
 */
 
 PREDICATE(hdt_string_id, 4)
 { hdt_wrapper *symb;
-  atom_t role;
   TripleComponentRole roleid;
   size_t len; char *s;
 
-  if ( !get_hdt(A1, &symb) )
+  if ( !get_hdt(A1, &symb) ||
+       !get_triple_role(A2, &roleid) )
     return FALSE;
-
-  if ( !PL_get_atom_ex(A2, &role) )
-    return FALSE;
-  if ( role == ATOM_subject )
-    roleid = SUBJECT;
-  else if ( role == ATOM_predicate )
-    roleid = PREDICATE;
-  else if ( role == ATOM_object )
-    roleid = OBJECT;
-  else
-    return PL_domain_error("hdt_role", A2);
 
   Dictionary *dict = symb->hdt->getDictionary();
 

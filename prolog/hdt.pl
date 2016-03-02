@@ -44,6 +44,7 @@
 	    hdt_shared/2,		% +HDT, -Shared
 	    hdt_object/2,		% +HDT, -Object
 
+	    hdt_suggestions/5,		% +HDT, +Base, +Role, +MaxCount, -List
 	    hdt_property/2,		% +HTD, -Property
 
 	    hdt_string_id/4,		% +HDT, +Role, ?String, ?Id
@@ -138,6 +139,18 @@ hdt_shared(HDT, Subject) :-
 hdt_object(HDT, Subject) :-
 	hdt_object_(HDT, Var),
 	Var = Subject.
+
+%%	hdt_suggestions(+HDT, +Base, +Role, +MaxResults, -Results:list) is det.
+%
+%	True when Results is a  list  of   suggestions  for  Base in the
+%	triple role Role. Some experimentation   suggests  it performs a
+%	prefix match on the internal string representation. This implies
+%	that literals are only found if the   first character of Base is
+%	`"`.
+%
+%	@arg Base is a string or atom
+%	@arg Role is one of `subject`, `predicate` or `object`
+
 
 %%	hdt_property(+HDT, ?Property) is nondet.
 %
