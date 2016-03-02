@@ -122,23 +122,46 @@ header_untyped_object(S, O) :-
 %%	hdt_shared(+HDT, -IRI) is nondet.
 %
 %	Enumerate possible values for the   individual components of the
-%	triples represented in the HDT.
+%	triples represented in the HDT. Note   that these enumarators do
+%	not  enumerate  _blank  nodes_.    The   predicate  hdt_shared/2
+%	enumerates resources that exist in the dataset both as _subject_
+%	and  _object_.  If  the   second    argument   is   instantiated
+%	hdt_search/4 is used to  perform  an   indexed  search  and  the
+%	predicates are _semidet_.
 
 hdt_subject(HDT, Subject) :-
-	hdt_column_(HDT, subject, Var),
-	Var = Subject.
+	(   var(Subject)
+	->  hdt_column_(HDT, subject, Var),
+	    Var = Subject
+	;   hdt_search(HDT, Subject, _, _)
+	->  true
+	).
 
-hdt_predicate(HDT, Subject) :-
-	hdt_column_(HDT, predicate, Var),
-	Var = Subject.
+hdt_predicate(HDT, Predicate) :-
+	(   var(Predicate)
+	->  hdt_column_(HDT, predicate, Var),
+	    Var = Predicate
+	;   hdt_search(HDT, _, Predicate, _)
+	->  true
+	).
 
-hdt_shared(HDT, Subject) :-
-	hdt_column_(HDT, shared, Var),
-	Var = Subject.
+hdt_shared(HDT, Shared) :-
+	(   var(Shared)
+	->  hdt_column_(HDT, shared, Var),
+	    Var = Shared
+	;   hdt_subject(Shared),
+	    hdt_object(Shared)
+	->  true
+	).
 
-hdt_object(HDT, Subject) :-
-	hdt_object_(HDT, Var),
-	Var = Subject.
+hdt_object(HDT, Object) :-
+	(   var(Object)
+	->  hdt_object_(HDT, Var),
+	    Var = Object
+	;   hdt_search(HDT, _, Object, _)
+	->  true
+	).
+
 
 %%	hdt_suggestions(+HDT, +Base, +Role, +MaxResults, -Results:list) is det.
 %
