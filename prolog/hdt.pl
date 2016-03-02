@@ -37,6 +37,7 @@
 	    hdt_open/3,			% -HDT, +Path, +Options
 	    hdt_close/1,		% +HDT
 	    hdt_search/4,		% +HDT, ?S,?P,?O
+	    hdt_header/4,		% +HDT, ?S,?P,?O
 
 	    hdt_subject/2,		% +HDT, -Subject
 	    hdt_predicate/2,		% +HDT, -Predicate
@@ -76,6 +77,20 @@
 
 hdt_open(HDT, File) :-
 	hdt_open(HDT, File, []).
+
+%%	hdt_search(+HDT, ?S, ?P, ?O)
+%
+%	True if <S,P,O> is a triple in HDT.
+
+hdt_search(HDT, S, P, O) :-
+	hdt_search(HDT, content, S, P, O).
+
+%%	hdt_header(+HDT, ?S, ?P, ?O)
+%
+%	True if <S,P,O> is a triple in the header of HDT.
+
+hdt_header(HDT, S, P, O) :-
+	hdt_search(HDT, header, S, P, O).
 
 %%	hdt_subject(+HDT, -IRI) is nondet.
 %%	hdt_predicate(+HDT, -IRI) is nondet.

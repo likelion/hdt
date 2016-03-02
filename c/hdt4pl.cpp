@@ -46,6 +46,10 @@ static void deleteHDT(HDT *hdt);
 
 extern "C" {
 
+#define URL_xsd		  "http://www.w3.org/2001/XMLSchema#"
+#define URL_xsdString     URL_xsd "string"
+#define URL_xsdDouble     URL_xsd "double"
+
 static atom_t ATOM_mapping;
 static atom_t ATOM_max_id;
 static atom_t ATOM_max_object_id;
@@ -63,6 +67,8 @@ static atom_t ATOM_access;
 static atom_t ATOM_indexed;
 static atom_t ATOM_map;
 static atom_t ATOM_load;
+static atom_t ATOM_header;
+static atom_t ATOM_content;
 
 static functor_t FUNCTOR_rdftype2;
 static functor_t FUNCTOR_rdflang2;
@@ -164,6 +170,8 @@ install_hdt4pl(void)
   MKATOM(indexed);
   MKATOM(map);
   MKATOM(load);
+  MKATOM(content);
+  MKATOM(header);
 
   FUNCTOR_rdftype2 = PL_new_functor(PL_new_atom("^^"), 2);
   FUNCTOR_rdflang2 = PL_new_functor(PL_new_atom("@"), 2);
@@ -292,11 +300,18 @@ unify_object(term_t t, const char *s)
 { if ( s[0] == '"' )
   { const char *e = s+strlen(s)-1;
 
-    for(;;)
+    for(;; e--)
     { while( e>s && *e != '"' )
 	e--;
       if ( e > s )
-      { if ( strncmp(e+1, "^^<", 3) == 0 )
+      { if ( e[1] == '\0' )		/* No type nor lang??  In header ... */
+	{ term_t av = PL_new_term_refs(2);
+	  int rc;
+
+	  s++;
+	  rc = PL_unify_chars(t, PL_STRING|REP_UTF8, e-s, s);
+	  return rc;
+	} else if ( strncmp(e+1, "^^<", 3) == 0 )
 	{ term_t av = PL_new_term_refs(2);
 	  int rc;
 
@@ -330,8 +345,10 @@ unify_object(term_t t, const char *s)
 }
 
 
+/** hdt_search(+HDT, +Where, ?S, ?P, ?O)
+*/
 
-PREDICATE_NONDET(hdt_search, 4)
+PREDICATE_NONDET(hdt_search, 5)
 { hdt_wrapper *symb;
   search_it ctx_buf = {0};
   search_it *ctx;
@@ -340,15 +357,24 @@ PREDICATE_NONDET(hdt_search, 4)
   switch(PL_foreign_control(handle))
   { case PL_FIRST_CALL:
     { char *s, *p, *o;
+      atom_t where;
 
       ctx = &ctx_buf;
       if ( !get_hdt(A1, &symb) )
 	return FALSE;
-      if ( !get_search_string(A2, &s, S_S, &ctx->flags) ||
-	   !get_search_string(A3, &p, S_O, &ctx->flags) ||
-	   !get_search_string(A4, &o, S_P, &ctx->flags) )
+      if ( !PL_get_atom_ex(A2, &where) ||
+	   !get_search_string(A3, &s, S_S, &ctx->flags) ||
+	   !get_search_string(A4, &p, S_O, &ctx->flags) ||
+	   !get_search_string(A5, &o, S_P, &ctx->flags) )
 	return FALSE;
-      ctx->it = symb->hdt->search(s,p,o);
+
+      if ( where == ATOM_content )
+	ctx->it = symb->hdt->search(s,p,o);
+      else if ( where == ATOM_header )
+	ctx->it = symb->hdt->getHeader()->search(s,p,o);
+      else
+	return PL_domain_error("hdt_where", A2);
+
       goto next;
     }
     case PL_REDO:
@@ -357,9 +383,9 @@ PREDICATE_NONDET(hdt_search, 4)
     { if ( ctx->it->hasNext() )
       { TripleString *t = ctx->it->next();
 
-	if ( (!(ctx->flags&S_S) || unify_string(A2, t->getSubject().c_str())) &&
-	     (!(ctx->flags&S_P) || unify_string(A3, t->getPredicate().c_str())) &&
-	     (!(ctx->flags&S_O) || unify_object(A4, t->getObject().c_str())) )
+	if ( (!(ctx->flags&S_S) || unify_string(A3, t->getSubject().c_str())) &&
+	     (!(ctx->flags&S_P) || unify_string(A4, t->getPredicate().c_str())) &&
+	     (!(ctx->flags&S_O) || unify_object(A5, t->getObject().c_str())) )
 	{ if ( ctx == &ctx_buf )
 	  { ctx = (search_it*)PL_malloc(sizeof(*ctx));
 	    *ctx = ctx_buf;
