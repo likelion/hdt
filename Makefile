@@ -3,9 +3,11 @@
 # uses includes and R dlls in my disk space and includes those ala
 # buildenv.sh (on the fly)
 #
+
+HDTHOME=/home/janw/3rdparty/hdt-cpp/hdt-lib
 SOBJ=	$(PACKSODIR)/hdt4pl.$(SOEXT)
-CFLAGS+=-I/home/janw/3rdparty/hdt-cpp/hdt-lib/include -g
-LIBS=	-L/home/janw/3rdparty/hdt-cpp/hdt-lib -lhdt
+CFLAGS+=-I$(HDTHOME)/include -g
+LIBS=	-L$(HDTHOME) -lhdt
 LD=g++
 
 all:	$(SOBJ)
