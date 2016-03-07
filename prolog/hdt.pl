@@ -184,14 +184,13 @@ pre_object(O, HDT) :-
 	HDT = O.
 pre_object(O, HDT) :-
 	ground(O), !,
-	rdf_canonical_literal(O, Cannonical),
-	rdf_lexical_form(Cannonical, Lexical),
-	canonical_string(Cannonical, Lexical, HDT).
+	rdf_lexical_form(O, Lexical),
+	canonical_string(Lexical, HDT).
 pre_object(_, _).
 
-canonical_string(_^^Type, Lexical, HDT) :-
+canonical_string(Lexical^^Type, HDT) :-
 	atomics_to_string(["\"", Lexical, "\"^^<", Type, ">"], HDT).
-canonical_string(_@Lang, Lexical, HDT) :-
+canonical_string(Lexical@Lang, HDT) :-
 	atomics_to_string(["\"", Lexical, "\"@", Lang], HDT).
 
 boolean(false).
