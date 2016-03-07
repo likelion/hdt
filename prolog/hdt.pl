@@ -52,13 +52,21 @@
 	    op(110, xfx, @),		% must be above .
 	    op(650, xfx, ^^)		% must be above :
 	  ]).
-:- use_module(library(semweb/rdf_db)).
+:- use_module(library(semweb/rdf11)).
 :- use_module(library(sgml)).
 
 :- use_foreign_library(foreign(hdt4pl)).
 
 /** <module> Access HDT (Header Dictionary Triples) files
 */
+
+:- rdf_meta
+	hdt_search(+,r,r,o),
+	hdt_subject(+,r),
+	hdt_predicate(+,r),
+	hdt_shared(+,r),
+	hdt_object(+,o),
+	hdt_string_id(+, +, o, -).
 
 %%	hdt_open(-HDT, +File) is det.
 %%	hdt_open(-HDT, +File, +Options) is det.
@@ -86,7 +94,9 @@ hdt_open(HDT, File) :-
 %	True if <S,P,O> is a triple in HDT.
 
 hdt_search(HDT, S, P, O) :-
-	hdt_search(HDT, content, S, P, O).
+	pre_object(O, OHDT),
+	hdt_search(HDT, content, S, P, OHDT),
+	post_object(O, OHDT).
 
 %%	hdt_header(+HDT, ?S, ?P, ?O)
 %
@@ -149,8 +159,8 @@ hdt_shared(HDT, Shared) :-
 	(   var(Shared)
 	->  hdt_column_(HDT, shared, Var),
 	    Var = Shared
-	;   hdt_subject(Shared),
-	    hdt_object(Shared)
+	;   hdt_subject(HDT, Shared),
+	    hdt_object(HDT, Shared)
 	->  true
 	).
 
@@ -161,6 +171,39 @@ hdt_object(HDT, Object) :-
 	;   hdt_search(HDT, _, Object, _)
 	->  true
 	).
+
+
+%%	pre_object(?O, -OHDT) is det.
+%%	post_object(?O, +OHDT) is det.
+%
+%	Pre/post object processing. The  HDT   library  itself is purely
+%	string based.
+
+pre_object(O, HDT) :-
+	atom(O), \+ boolean(O), !,
+	HDT = O.
+pre_object(O, HDT) :-
+	ground(O), !,
+	rdf_canonical_literal(O, Cannonical),
+	rdf_lexical_form(Cannonical, Lexical),
+	canonical_string(Cannonical, Lexical, HDT).
+pre_object(_, _).
+
+canonical_string(_^^Type, Lexical, HDT) :-
+	atomics_to_string([Lexical, "^^", Type], HDT).
+canonical_string(_@Lang, Lexical, HDT) :-
+	atomics_to_string([Lexical, "@", Lang], HDT).
+
+boolean(false).
+boolean(true).
+
+post_object(O, _HDT) :-
+	ground(O), !.
+post_object(O, IRI) :-
+	atom(IRI), !,
+	O = IRI.
+post_object(O, HDT) :-
+	rdf_canonical_literal(HDT, O).
 
 
 %%	hdt_suggestions(+HDT, +Base, +Role, +MaxResults, -Results:list) is det.
