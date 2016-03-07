@@ -55,6 +55,8 @@
 	    hdt_search_id/4,		% +HDT, ?S,?P,?O
 	    hdt_search_cost/5,		% +HDT, ?S,?P,?O, -Cost
 
+	    hdt_create_from_file/3,	% +HDTFile, +RDFFile, +Options
+
 	    op(110, xfx, @),		% must be above .
 	    op(650, xfx, ^^)		% must be above :
 	  ]).
@@ -336,6 +338,20 @@ hdt_search_cost(HDT, S, P, O, Cost) :-
 	TripleID = t(SID,PID,OID),
 	hdt_pre_triple(HDT, Triple, TripleID),
 	hdt_search_cost_id(HDT, SID, PID, OID, Cost).
+
+
+		 /*******************************
+		 *	       CREATE		*
+		 *******************************/
+
+%%	hdt_create_from_file(+HDTFile, +RDFFile, +Options)
+%
+%	Create a HDT  file  from  an  RDF   file.  RDFFile  must  be  in
+%	`ntriples` format.  Options:
+%
+%	  * base_uri(+URI)
+%	  URI is used for generating the header properties (see
+%	  http_header/4.
 
 
 		 /*******************************

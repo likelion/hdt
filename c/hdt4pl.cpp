@@ -45,6 +45,13 @@ using namespace hdt;
 static void	deleteHDT(HDT *hdt);
 static int	get_triple_role(term_t t, TripleComponentRole *role);
 
+#define CATCH_HDT \
+	catch (char *e) \
+	{ return hdt_error(e); \
+	} catch (const char *e) \
+	{ return hdt_error(e); \
+	}
+
 extern "C" {
 
 #define URL_xsd		  "http://www.w3.org/2001/XMLSchema#"
@@ -70,6 +77,7 @@ static atom_t ATOM_map;
 static atom_t ATOM_load;
 static atom_t ATOM_header;
 static atom_t ATOM_content;
+static atom_t ATOM_base_uri;
 
 static functor_t FUNCTOR_rdftype2;
 static functor_t FUNCTOR_rdflang2;
@@ -173,6 +181,7 @@ install_hdt4pl(void)
   MKATOM(load);
   MKATOM(content);
   MKATOM(header);
+  MKATOM(base_uri);
 
   FUNCTOR_rdftype2 = PL_new_functor(PL_new_atom("^^"), 2);
   FUNCTOR_rdflang2 = PL_new_functor(PL_new_atom("@"), 2);
@@ -728,3 +737,60 @@ PREDICATE(hdt_search_cost_id, 5)
   TripleID t(s,p,o);
   return (A5 = (double)symb->hdt->getTriples()->cost(t));
 }
+
+
+		 /*******************************
+		 *	      GENERATE		*
+		 *******************************/
+
+/**
+ * hdt_create_from_file(+HDTFile, +RDFFile, +Options)
+ *
+ * @tbd Fill HDTSpecification
+ * @tbd Allow additional header triples
+ */
+
+PREDICATE(hdt_create_from_file, 3)
+{ char *hdt_file, *rdf_file;
+  HDTSpecification spec;
+  char *base_uri = (char*)"http://example.org/base";
+
+  if ( !PL_get_file_name(A1, &hdt_file, PL_FILE_OSPATH) ||
+       !PL_get_file_name(A2, &rdf_file, PL_FILE_OSPATH|PL_FILE_READ) )
+    return FALSE;
+
+  PlTail options(A3);
+  PlTerm opt;
+  while(options.next(opt))
+  { atom_t name;
+    size_t arity;
+
+    if ( PL_get_name_arity(opt, &name, &arity) && arity == 1 )
+    { PlTerm ov = opt[1];
+
+      if ( name == ATOM_base_uri )
+      { size_t len;
+
+	if ( !PL_get_nchars(ov, &len, &base_uri,
+			    CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8) )
+	  return FALSE;
+      }
+    } else
+      return PL_type_error("option", opt);
+  }
+
+  try
+  { HDT *hdt = HDTManager::generateHDT(rdf_file, base_uri, NTRIPLES, spec);
+
+    //Header *header = hdt->getHeader();
+    //header->insert("myResource1", "property", "value");
+
+    hdt->saveToHDT(hdt_file);
+
+    delete hdt;
+  } CATCH_HDT
+
+  return TRUE;
+}
+
+
