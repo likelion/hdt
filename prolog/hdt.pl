@@ -190,9 +190,9 @@ pre_object(O, HDT) :-
 pre_object(_, _).
 
 canonical_string(_^^Type, Lexical, HDT) :-
-	atomics_to_string([Lexical, "^^", Type], HDT).
+	atomics_to_string(["\"", Lexical, "\"^^<", Type, ">"], HDT).
 canonical_string(_@Lang, Lexical, HDT) :-
-	atomics_to_string([Lexical, "@", Lang], HDT).
+	atomics_to_string(["\"", Lexical, "\"@", Lang], HDT).
 
 boolean(false).
 boolean(true).
