@@ -166,8 +166,8 @@ hdt_shared(HDT, Shared) :-
 
 hdt_object(HDT, Object) :-
 	(   var(Object)
-	->  hdt_object_(HDT, Var),
-	    Var = Object
+	->  hdt_object_(HDT, OHDT),
+	    post_object(Object, OHDT)
 	;   hdt_search(HDT, _, Object, _)
 	->  true
 	).
