@@ -365,8 +365,8 @@ PREDICATE_NONDET(hdt_search, 5)
 	return FALSE;
       if ( !PL_get_atom_ex(A2, &where) ||
 	   !get_search_string(A3, &s, S_S, &ctx->flags) ||
-	   !get_search_string(A4, &p, S_O, &ctx->flags) ||
-	   !get_search_string(A5, &o, S_P, &ctx->flags) )
+	   !get_search_string(A4, &p, S_P, &ctx->flags) ||
+	   !get_search_string(A5, &o, S_O, &ctx->flags) )
 	return FALSE;
 
       if ( where == ATOM_content )
