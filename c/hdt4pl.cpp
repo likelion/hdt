@@ -393,9 +393,9 @@ PREDICATE_NONDET(hdt_search, 5)
 	  }
 	  PL_retry_address(ctx);
 	}
-	rc = FALSE;
-	goto cleanup;
       }
+      rc = FALSE;
+      goto cleanup;
     }
     case PL_PRUNED:
       ctx = (search_it*)PL_foreign_context_address(handle);
