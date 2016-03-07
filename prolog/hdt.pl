@@ -47,7 +47,13 @@
 	    hdt_suggestions/5,		% +HDT, +Base, +Role, +MaxCount, -List
 	    hdt_property/2,		% +HTD, -Property
 
-	    hdt_string_id/4,		% +HDT, +Role, ?String, ?Id
+	    hdt_subject_id/3,		% +HDT, ?Subject, ?Id
+	    hdt_predicate_id/3,		% +HDT, ?Predicate, ?Id
+	    hdt_object_id/3,		% +HDT, ?Object, ?Id
+	    hdt_pre_triple/3,		% +HDT, ?StringTriple, -IdTriple
+	    hdt_post_triple/3,		% +HDT, ?StringTriple, +IdTriple
+	    hdt_search_id/4,		% +HDT, ?S,?P,?O
+	    hdt_search_cost/5,		% +HDT, ?S,?P,?O, -Cost
 
 	    op(110, xfx, @),		% must be above .
 	    op(650, xfx, ^^)		% must be above :
@@ -66,7 +72,10 @@
 	hdt_predicate(+,r),
 	hdt_shared(+,r),
 	hdt_object(+,o),
-	hdt_string_id(+, +, o, -).
+	hdt_subject_id(+, r, ?),
+	hdt_predicate_id(+, r, ?),
+	hdt_object_id(+, o, ?),
+	hdt_search_cost(+, r, r, o, -).
 
 %%	hdt_open(-HDT, +File) is det.
 %%	hdt_open(-HDT, +File, +Options) is det.
@@ -252,12 +261,81 @@ hdt_property(elements(_)).
 		 *	    IDENTIFIERS		*
 		 *******************************/
 
-%%	hdt_string_id(+HDT, +Role, ?String:atom, ?Id:integer) is semidet.
+%%	hdt_subject_id(+HDT,   ?Subject:atom,   ?Id:integer) is semidet.
+%%	hdt_predicate_id(+HDT, ?Predicate:atom, ?Id:integer) is semidet.
+%%	hdt_object_id(+HDT,    ?Object:any,     ?Id:integer) is semidet.
 %
 %	True if String is mapped to Id in   the given role. Fails if the
 %	requested String or Id is not known for the given role in HDT.
 %
 %	@arg Role is one of `subject`, `predicate` or `object`
+
+hdt_subject_id(HDT, String, Id) :-
+	hdt_string_id(HDT, subject, String, Id).
+hdt_predicate_id(HDT, String, Id) :-
+	hdt_string_id(HDT, predicate, String, Id).
+hdt_object_id(HDT, Object, Id) :-
+	pre_object(Object, String),
+	hdt_string_id(HDT, object, String, Id),
+	post_object(Object, String).
+
+%%	hdt_pre_triple(+HDT,  ?TripleIn, -TripleID) is det.
+%%	hdt_post_triple(+HDT, ?TripleIn, +TripleID) is det.
+%
+%	Perform term->id and  id->term  translation   for  triples.  The
+%	predicate hdt_search/4 could be defined as:
+%
+%	  ==
+%	  hdt_search(HDT, S, P, O) :-
+%	      Triple   = t(S,P,O),
+%	      TripleID = t(SID,PID,OID),
+%	      hdt_pre_triple(HDT, Triple, TripleID),
+%	      hdt_search_id(HDT,SID,PID,OID),
+%	      hdt_post_triple(HDT, Triple, TripleID).
+%	  ==
+%
+%	@see hdt_search_id/4.
+
+hdt_pre_triple(HDT, t(S0,P0,O0), t(S,P,O)) :-
+	pre_iri_id(HDT, subject, S0, S),
+	pre_iri_id(HDT, predicate, P0, P),
+	(   ground(O0)
+	->  pre_object(O0, String),
+	    hdt_string_id(HDT, object, String, O)
+	;   true
+	).
+
+hdt_post_triple(HDT, t(S0,P0,O0), t(S,P,O)) :-
+	post_iri_id(HDT, subject, S0, S),
+	post_iri_id(HDT, predicate, P0, P),
+	(   ground(O0)
+	->  true
+	;   hdt_string_id(HDT, object, String, O),
+	    post_object(O0, String)
+	).
+
+pre_iri_id(_, _, In, _) :-
+	var(In), !.
+pre_iri_id(HDT, Role, In, Id) :-
+	hdt_string_id(HDT, Role, In, Id).
+
+post_iri_id(_, _, S0, _) :-
+	atom(S0), !.
+post_iri_id(HDT, Role, In, Id) :-
+	hdt_string_id(HDT, Role, In, Id).
+
+
+%%	hdt_search_id(+HDT, ?S:integer, ?P:integer, ?O:integer) is nondet.
+%
+%	True if a triple with the indicated identifiers exists.
+
+%%	hdt_search_cost(HDT, ?S, ?P, ?O, -Cost:float) is det.
+
+hdt_search_cost(HDT, S, P, O, Cost) :-
+	Triple   = t(S,P,O),
+	TripleID = t(SID,PID,OID),
+	hdt_pre_triple(HDT, Triple, TripleID),
+	hdt_search_cost_id(HDT, SID, PID, OID, Cost).
 
 
 		 /*******************************

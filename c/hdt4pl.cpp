@@ -609,7 +609,7 @@ PREDICATE(hdt_string_id, 4)
   Dictionary *dict = symb->hdt->getDictionary();
 
   if ( !PL_is_variable(A3) )
-  { if ( PL_get_nchars(A3, &len, &s, CVT_ATOM|REP_UTF8|CVT_EXCEPTION) )
+  { if ( PL_get_nchars(A3, &len, &s, CVT_ATOM|CVT_STRING|REP_UTF8|CVT_EXCEPTION) )
     { std::string str(s);
       unsigned int id = dict->stringToId(str, roleid);
 
@@ -624,4 +624,107 @@ PREDICATE(hdt_string_id, 4)
   }
 
   return FALSE;
+}
+
+
+typedef struct
+{ unsigned flags;
+  IteratorTripleID *it;
+} searchid_it;
+
+
+static int
+get_search_id(term_t t, unsigned *id, unsigned flag, unsigned *flagp)
+{ if ( PL_is_variable(t) )
+  { *id = 0;
+    *flagp |= flag;
+    return TRUE;
+  } else
+  { int i;
+
+    if ( PL_get_integer_ex(t, &i) )
+    { *id = (unsigned)i;
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+
+
+/** hdt_search_id(+HDT, ?S, ?P, ?O)
+*/
+
+PREDICATE_NONDET(hdt_search_id, 4)
+{ hdt_wrapper *symb;
+  searchid_it ctx_buf = {0};
+  searchid_it *ctx;
+  int rc;
+
+  switch(PL_foreign_control(handle))
+  { case PL_FIRST_CALL:
+    { unsigned s, p, o;
+
+      ctx = &ctx_buf;
+      if ( !get_hdt(A1, &symb) ||
+	   !get_search_id(A2, &s, S_S, &ctx->flags) ||
+	   !get_search_id(A3, &p, S_P, &ctx->flags) ||
+	   !get_search_id(A4, &o, S_O, &ctx->flags) )
+	return FALSE;
+
+      TripleID t(s,p,o);
+      ctx->it = symb->hdt->getTriples()->search(t);
+
+      goto next;
+    }
+    case PL_REDO:
+      ctx = (searchid_it*)PL_foreign_context_address(handle);
+    next:
+    { if ( ctx->it->hasNext() )
+      { TripleID *t = ctx->it->next();
+
+	if ( (!(ctx->flags&S_S) || PL_unify_integer(A2, t->getSubject())) &&
+	     (!(ctx->flags&S_P) || PL_unify_integer(A3, t->getPredicate())) &&
+	     (!(ctx->flags&S_O) || PL_unify_integer(A4, t->getObject())) )
+	{ if ( ctx == &ctx_buf )
+	  { ctx = (searchid_it*)PL_malloc(sizeof(*ctx));
+	    *ctx = ctx_buf;
+	  }
+	  PL_retry_address(ctx);
+	}
+      }
+      rc = FALSE;
+      goto cleanup;
+    }
+    case PL_PRUNED:
+      ctx = (searchid_it*)PL_foreign_context_address(handle);
+      rc = TRUE;
+    cleanup:
+      if ( ctx->it )
+	delete ctx->it;
+      if ( ctx != &ctx_buf )
+	PL_free(ctx);
+      return rc;
+  }
+
+  return FALSE;
+}
+
+
+/** hdt_search_cost_id(+HDT, ?S, ?P, ?O, -Cost)
+*/
+
+PREDICATE(hdt_search_cost_id, 5)
+{ hdt_wrapper *symb;
+  unsigned s, p, o, flags=0;
+
+  if ( !get_hdt(A1, &symb) ||
+       !get_search_id(A2, &s, S_S, &flags) ||
+       !get_search_id(A3, &p, S_P, &flags) ||
+       !get_search_id(A4, &o, S_O, &flags) )
+    return FALSE;
+
+  TripleID t(s,p,o);
+  return (A5 = (double)symb->hdt->getTriples()->cost(t));
 }
