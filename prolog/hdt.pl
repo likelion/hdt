@@ -152,7 +152,9 @@ header_untyped_object(S, O) :-
 
 hdt_subject(HDT, Subject) :-
 	(   var(Subject)
-	->  hdt_column_(HDT, subject, Var),
+	->  (   hdt_column_(HDT, shared, Var)
+	    ;	hdt_column_(HDT, subject, Var)
+	    ),
 	    Var = Subject
 	;   hdt_search(HDT, Subject, _, _)
 	->  true
@@ -177,8 +179,11 @@ hdt_shared(HDT, Shared) :-
 
 hdt_object(HDT, Object) :-
 	(   var(Object)
-	->  hdt_object_(HDT, OHDT),
-	    post_object(Object, OHDT)
+	->  (   hdt_column_(HDT, shared, Var),
+	        Var = Object
+	    ;	hdt_object_(HDT, OHDT),
+		post_object(Object, OHDT)
+	    )
 	;   hdt_search(HDT, _, Object, _)
 	->  true
 	).
