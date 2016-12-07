@@ -185,7 +185,7 @@ hdt_object(HDT, Object) :-
 	    ;	hdt_object_(HDT, OHDT),
 		post_object(Object, OHDT)
 	    )
-	;   hdt_search(HDT, _, Object, _)
+	;   hdt_search(HDT, _, _, Object)
 	->  true
 	).
 
