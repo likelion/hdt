@@ -172,7 +172,8 @@ hdt_shared(HDT, Shared) :-
 	(   var(Shared)
 	->  hdt_column_(HDT, shared, Var),
 	    Var = Shared
-	;   hdt_subject(HDT, Shared),
+	;   rdf_is_subject(Shared),
+	    hdt_subject(HDT, Shared),
 	    hdt_object(HDT, Shared)
 	->  true
 	).
