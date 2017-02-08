@@ -3,7 +3,7 @@
     Author:        Jan Wielemaker
     E-mail:        J.Wielemaker@vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (c)  2016, VU University Amsterdam
+    Copyright (c)  2017, VU University Amsterdam
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -46,10 +46,12 @@ static void	deleteHDT(HDT *hdt);
 static int	get_triple_role(term_t t, TripleComponentRole *role);
 
 #define CATCH_HDT \
-	catch (char *e) \
-	{ return hdt_error(e); \
-	} catch (const char *e) \
-	{ return hdt_error(e); \
+	catch (char *e)				\
+	{ return hdt_error(e);			\
+	} catch (const char *e)			\
+	{ return hdt_error(e);			\
+	} catch (std::exception& e)		\
+	{ return hdt_error(e.what());		\
 	}
 
 extern "C" {
@@ -249,11 +251,7 @@ PREDICATE(hdt_open, 3)
       PL_put_atom(ex, access);
       return PL_domain_error("hdt_access", ex);
     }
-  } catch (char *e)
-  { return hdt_error(e);
-  } catch (const char *e)
-  { return hdt_error(e);
-  }
+  } CATCH_HDT;
 
   hdt_wrapper *symb = (hdt_wrapper*)PL_malloc(sizeof(*symb));
   memset(symb, 0, sizeof(*symb));
@@ -378,12 +376,14 @@ PREDICATE_NONDET(hdt_search, 5)
 	   !get_search_string(A5, &o, S_O, &ctx->flags) )
 	return FALSE;
 
-      if ( where == ATOM_content )
-	ctx->it = symb->hdt->search(s,p,o);
-      else if ( where == ATOM_header )
-	ctx->it = symb->hdt->getHeader()->search(s,p,o);
-      else
-	return PL_domain_error("hdt_where", A2);
+      try
+      { if ( where == ATOM_content )
+	  ctx->it = symb->hdt->search(s,p,o);
+	else if ( where == ATOM_header )
+	  ctx->it = symb->hdt->getHeader()->search(s,p,o);
+	else
+	  return PL_domain_error("hdt_where", A2);
+      } CATCH_HDT;
 
       goto next;
     }
@@ -439,7 +439,9 @@ PREDICATE(hdt_suggestions, 5)
        !PL_get_integer_ex(A4, &max_count) )
     return FALSE;
 
-  symb->hdt->getDictionary()->getSuggestions(from, role, out, max_count);
+  try
+  { symb->hdt->getDictionary()->getSuggestions(from, role, out, max_count);
+  } CATCH_HDT;
 
   term_t tail = PL_copy_term_ref(A5);
   term_t head = PL_new_term_ref();
@@ -469,30 +471,33 @@ PREDICATE(hdt_property_, 2)
 
   if ( PL_get_name_arity(A2, &name, &arity) )
   { PlTerm a = A2[1];
-    Dictionary *dict = symb->hdt->getDictionary();
 
-    if ( name == ATOM_mapping )
-      return (a = (long)dict->getMapping());
-    else if ( name == ATOM_max_id )
-      return (a = (long)dict->getMaxID());
-    else if ( name == ATOM_max_object_id )
-      return (a = (long)dict->getMaxObjectID());
-    else if ( name == ATOM_max_predicate_id )
-      return (a = (long)dict->getMaxPredicateID());
-    else if ( name == ATOM_max_subject_id )
-      return (a = (long)dict->getMaxSubjectID());
-    else if ( name == ATOM_objects )
-      return (a = (long)dict->getNobjects());
-    else if ( name == ATOM_predicates )
-      return (a = (long)dict->getNpredicates());
-    else if ( name == ATOM_shared )
-      return (a = (long)dict->getNshared());
-    else if ( name == ATOM_subjects )
-      return (a = (long)dict->getNsubjects());
-    else if ( name == ATOM_elements )
-      return (a = (long)dict->getNumberOfElements());
-    else
-      return PL_domain_error("hdt_property", A2);
+    try
+    { Dictionary *dict = symb->hdt->getDictionary();
+
+      if ( name == ATOM_mapping )
+	return (a = (long)dict->getMapping());
+      else if ( name == ATOM_max_id )
+	return (a = (long)dict->getMaxID());
+      else if ( name == ATOM_max_object_id )
+	return (a = (long)dict->getMaxObjectID());
+      else if ( name == ATOM_max_predicate_id )
+	return (a = (long)dict->getMaxPredicateID());
+      else if ( name == ATOM_max_subject_id )
+	return (a = (long)dict->getMaxSubjectID());
+      else if ( name == ATOM_objects )
+	return (a = (long)dict->getNobjects());
+      else if ( name == ATOM_predicates )
+	return (a = (long)dict->getNpredicates());
+      else if ( name == ATOM_shared )
+	return (a = (long)dict->getNshared());
+      else if ( name == ATOM_subjects )
+	return (a = (long)dict->getNsubjects());
+      else if ( name == ATOM_elements )
+	return (a = (long)dict->getNumberOfElements());
+      else
+	return PL_domain_error("hdt_property", A2);
+    } CATCH_HDT;
   }
 
   return PL_type_error("compound", A2);
@@ -511,17 +516,19 @@ PREDICATE_NONDET(hdt_column_, 3)
 	   !PL_get_atom_ex(A2, &a) )
 	return FALSE;
 
-      Dictionary *dict = symb->hdt->getDictionary();
-      if ( a == ATOM_subject )
-	it = dict->getSubjects();
-      else if ( a == ATOM_predicate )
-	it = dict->getPredicates();
-      else if ( a == ATOM_shared )
-	it = dict->getShared();
-      else if ( a == ATOM_object )
-	it = dict->getObjects();
-      else
-	return PL_domain_error("hdt_column", A2);
+      try
+      { Dictionary *dict = symb->hdt->getDictionary();
+	if ( a == ATOM_subject )
+	  it = dict->getSubjects();
+	else if ( a == ATOM_predicate )
+	  it = dict->getPredicates();
+	else if ( a == ATOM_shared )
+	  it = dict->getShared();
+	else if ( a == ATOM_object )
+	  it = dict->getObjects();
+	else
+	  return PL_domain_error("hdt_column", A2);
+      } CATCH_HDT;
 
       goto next;
     }
@@ -559,7 +566,9 @@ PREDICATE_NONDET(hdt_object_, 2)
       if ( !get_hdt(A1, &symb) )
 	return FALSE;
 
-      it = symb->hdt->getDictionary()->getObjects();
+      try
+      { it = symb->hdt->getDictionary()->getObjects();
+      } CATCH_HDT;
       goto next;
     }
     case PL_REDO:
@@ -615,22 +624,25 @@ PREDICATE(hdt_string_id, 4)
        !get_triple_role(A2, &roleid) )
     return FALSE;
 
-  Dictionary *dict = symb->hdt->getDictionary();
+  try
+  { Dictionary *dict = symb->hdt->getDictionary();
 
-  if ( !PL_is_variable(A3) )
-  { if ( PL_get_nchars(A3, &len, &s, CVT_ATOM|CVT_STRING|REP_UTF8|CVT_EXCEPTION) )
-    { std::string str(s);
-      unsigned int id = dict->stringToId(str, roleid);
+    if ( !PL_is_variable(A3) )
+    { if ( PL_get_nchars(A3, &len, &s,
+			 CVT_ATOM|CVT_STRING|REP_UTF8|CVT_EXCEPTION) )
+      { std::string str(s);
+	unsigned int id = dict->stringToId(str, roleid);
 
-      if ( id )
-	return (A4 = (long)id);
+	if ( id )
+	  return (A4 = (long)id);
+      }
+    } else
+    { std::string str = dict->idToString((unsigned int)(long)A4, roleid);
+
+      if ( !str.empty() )
+	return (A3 = str.c_str());
     }
-  } else
-  { std::string str = dict->idToString((unsigned int)(long)A4, roleid);
-
-    if ( !str.empty() )
-      return (A3 = str.c_str());
-  }
+  } CATCH_HDT;
 
   return FALSE;
 }
@@ -682,8 +694,10 @@ PREDICATE_NONDET(hdt_search_id, 4)
 	   !get_search_id(A4, &o, S_O, &ctx->flags) )
 	return FALSE;
 
-      TripleID t(s,p,o);
-      ctx->it = symb->hdt->getTriples()->search(t);
+      try
+      { TripleID t(s,p,o);
+	ctx->it = symb->hdt->getTriples()->search(t);
+      } CATCH_HDT;
 
       goto next;
     }
@@ -734,11 +748,13 @@ PREDICATE(hdt_search_cost_id, 5)
        !get_search_id(A4, &o, S_O, &flags) )
     return FALSE;
 
-  TripleID t(s,p,o);
-  IteratorTripleID *it = symb->hdt->getTriples()->search(t);
-  int numResults = it->estimatedNumResults();
-  delete it;
-  return (A5 = numResults);
+  try
+  { TripleID t(s,p,o);
+    IteratorTripleID *it = symb->hdt->getTriples()->search(t);
+    int numResults = it->estimatedNumResults();
+    delete it;
+    return (A5 = numResults);
+  } CATCH_HDT;
 }
 
 
