@@ -8,20 +8,21 @@ HDTHOME=/home/janw/3rdparty/hdt-cpp/hdt-lib
 SOBJ=	$(PACKSODIR)/hdt4pl.$(SOEXT)
 CFLAGS+=-I$(HDTHOME)/include -g
 LIBS=	-L$(HDTHOME) -lhdt
+OBJ=	c/hdt4pl.o
 LD=g++
 
 all:	$(SOBJ)
 
-$(SOBJ): hdt4pl.o
+$(SOBJ): $(OBJ)
 	mkdir -p $(PACKSODIR)
 	$(LD) $(ARCH) $(LDSOFLAGS) -o $@ $< $(LIBS) $(SWISOLIB)
 
-hdt4pl.o:
+c/hdt4pl.o: c/hdt4pl.cpp
 	$(CC) $(ARCH) $(CFLAGS) -c -o $@ c/hdt4pl.cpp
 
 check::
 install::
 clean:
-	rm -f hdt4pl.o
+	rm -f $(OBJ)
 distclean: clean
 	rm -f $(SOBJ)
