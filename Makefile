@@ -9,26 +9,28 @@ LD=g++
 
 all:	$(SOBJ)
 
-$(SOBJ): $(OBJ) $(HDTHOME)/libhdt.a
+$(SOBJ): $(OBJ)
 	mkdir -p $(PACKSODIR)
 	$(LD) $(ARCH) $(LDSOFLAGS) -o $@ $< $(LIBS) $(SWISOLIB)
 
-c/hdt4pl.o: c/hdt4pl.cpp
+c/hdt4pl.o: c/hdt4pl.cpp $(HDTHOME)/libhdt.a
 	$(CC) $(ARCH) $(CFLAGS) -c -o $@ c/hdt4pl.cpp
 
-$(HDTHOME):
+$(HDTHOME)/.make-senitel:
+	[ ! -f $(HDTHOME)/Makefile ] || (cd $(HDTHOME) && git reset --hard)
 	git submodule update --init
-
-$(HDTHOME)/libhdt.a:
 	sed -i 's/^FLAGS=-O3/FLAGS=-fPIC -O3/' $(HDTHOME)/Makefile
+	touch $@
+
+$(HDTHOME)/libhdt.a: $(HDTHOME)/.make-senitel
 	$(MAKE) -C $(HDTHOME) all
 
 check::
 install::
 clean:
-	rm -f $(OBJ)
-	(cd $(HDTHOME) && git reset --hard)
-	$(MAKE) -C $(HDTHOME) clean
+	rm -f $(OBJ) $(HDTHOME)/.make-senitel
+	[ ! -f $(HDTHOME)/Makefile ] || (cd $(HDTHOME) && git reset --hard)
+	[ ! -f $(HDTHOME)/Makefile ] || $(MAKE) -C $(HDTHOME) clean
 
 distclean: clean
 	rm -f $(SOBJ)
