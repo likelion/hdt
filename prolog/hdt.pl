@@ -3,7 +3,7 @@
     Author:        Jan Wielemaker
     E-mail:        J.Wielemaker@vu.nl
     WWW:           http://www.swi-prolog.org
-    Copyright (c)  2016, VU University Amsterdam
+    Copyright (c)  2017, VU University Amsterdam
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -62,6 +62,7 @@
 	  ]).
 :- use_module(library(semweb/rdf11)).
 :- use_module(library(sgml)).
+:- use_module(library(lists)).
 
 :- use_foreign_library(foreign(hdt4pl)).
 
@@ -105,7 +106,7 @@ hdt_open(HDT, File) :-
 %	True if <S,P,O> is a triple in HDT.
 
 hdt_search(HDT, S, P, O) :-
-	pre_object(O, OHDT),
+	pre_object(HDT, O, OHDT),
 	hdt_search(HDT, content, S, P, OHDT),
 	post_object(O, OHDT).
 
@@ -190,20 +191,30 @@ hdt_object(HDT, Object) :-
 	).
 
 
-%%	pre_object(?O, -OHDT) is det.
+%%	pre_object(+HDT, ?O, -OHDT) is det.
 %%	post_object(?O, +OHDT) is det.
 %
 %	Pre/post object processing. The  HDT   library  itself is purely
 %	string based.
 
-pre_object(O, HDT) :-
+pre_object(_HDT, O, OHDT) :-
 	atom(O), \+ boolean(O), !,
-	HDT = O.
-pre_object(O, HDT) :-
+	OHDT = O.
+pre_object(_HDT, O, OHDT) :-
 	ground(O), !,
 	rdf_lexical_form(O, Lexical),
-	canonical_string(Lexical, HDT).
-pre_object(_, _).
+	canonical_string(Lexical, OHDT).
+pre_object(HDT, O, OHDT) :-
+	nonvar(O),
+	O = String@Lang,
+	ground(String),
+	atomics_to_string(["\"", String, "\"@"], Prefix),
+	hdt_suggestions(HDT, Prefix, object, 1000, List),
+	length(List, Found),
+	Found < 1000, !,		% we got them all
+	member(_@Lang, List),
+	canonical_string(String@Lang, OHDT).
+pre_object(_, _, _).
 
 canonical_string(Lexical^^Type, HDT) :-
 	atomics_to_string(["\"", Lexical, "\"^^<", Type, ">"], HDT).
@@ -212,6 +223,8 @@ canonical_string(Lexical@Lang, HDT) :-
 
 boolean(false).
 boolean(true).
+
+%!	post_object(?PrologObj, ?HDTObjectString) is semidet.
 
 post_object(O, _HDT) :-
 	ground(O), !.
@@ -283,7 +296,7 @@ hdt_subject_id(HDT, String, Id) :-
 hdt_predicate_id(HDT, String, Id) :-
 	hdt_string_id(HDT, predicate, String, Id).
 hdt_object_id(HDT, Object, Id) :-
-	pre_object(Object, String),
+	pre_object(HDT, Object, String),
 	hdt_string_id(HDT, object, String, Id),
 	post_object(Object, String).
 
@@ -308,7 +321,7 @@ hdt_pre_triple(HDT, t(S0,P0,O0), t(S,P,O)) :-
 	pre_iri_id(HDT, subject, S0, S),
 	pre_iri_id(HDT, predicate, P0, P),
 	(   ground(O0)
-	->  pre_object(O0, String),
+	->  pre_object(HDT, O0, String),
 	    hdt_string_id(HDT, object, String, O)
 	;   true
 	).
