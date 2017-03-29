@@ -27,5 +27,8 @@ check::
 install::
 clean:
 	rm -f $(OBJ)
+	(cd $(HDTHOME) && git reset --hard)
+	$(MAKE) -C $(HDTHOME) clean
+
 distclean: clean
 	rm -f $(SOBJ)

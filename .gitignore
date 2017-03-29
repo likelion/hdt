@@ -4,3 +4,6 @@
 *.dylib
 .gdbinit
 buildenv.sh
+*.hdt
+*.hdt.index*
+*.nt
