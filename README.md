@@ -12,26 +12,26 @@ This repository is organised as  a   SWI-Prolog  _pack_.  To install it,
 perform the steps below. Tested on  Ubuntu   Linux.  Should work on most
 Unix-like machines. Installation on Windows requires more creativity.
 
-  1. Clone this repository in your SWI-Prolog _pack_ directory,
-     typically `~/lib/swipl/pack` and install it:
+1. Clone this repository in your SWI-Prolog _pack_ directory,
+   typically `~/lib/swipl/pack` and install it:
 
     a. Clone this pack:
 
-      ```bash
-      $ git clone https://github.com/JanWielemaker/hdt4swipl hdt
-      ```
+    ```bash
+    $ git clone https://github.com/JanWielemaker/hdt4swipl hdt
+    ```
 
     b. Install the prerequisite libraries.  On Ubuntu:
 
-      ```
-      sudo apt-get install libserd-dev libraptor-dev
-      ```
+    ```
+    sudo apt-get install libserd-dev libraptor-dev
+    ```
 
     c. Start SWI-Prolog and run
 
-      ```prolog
-      ?- pack_rebuild(hdt).
-      ```
+    ```prolog
+    ?- pack_rebuild(hdt).
+    ```
 
 If all worked out, you  can   now  use `?- use_module(library(hdt)).` to
 load the library. Please example the   comments  there to understand the
