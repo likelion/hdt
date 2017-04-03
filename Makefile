@@ -11,7 +11,7 @@ all:	$(SOBJ)
 
 $(SOBJ): $(OBJ)
 	mkdir -p $(PACKSODIR)
-	$(LD) $(ARCH) $(LDSOFLAGS) -o $@ $< $(LIBS) $(SWISOLIB)
+	$(LD) $(ARCH) $(LDSOFLAGS) -o $@ $< $(LIBS) $(SWISOLIB) -lserd-0
 
 c/hdt4pl.o: c/hdt4pl.cpp $(HDTHOME)/libhdt.a
 	$(CC) $(ARCH) $(CFLAGS) -c -o $@ c/hdt4pl.cpp
