@@ -18,7 +18,7 @@ Unix-like machines. Installation on Windows requires more creativity.
     a. Clone this pack:
 
     ```bash
-    $ git clone https://github.com/JanWielemaker/hdt4swipl hdt
+    $ git clone https://github.com/JanWielemaker/hdt
     ```
 
     b. Install the prerequisite libraries.  On Ubuntu:
