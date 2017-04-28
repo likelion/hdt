@@ -215,6 +215,7 @@ PREDICATE(hdt_open, 3)
   int indexed = TRUE;
   PlTail options(A3);
   PlTerm opt;
+  char *name;
 
   while(options.next(opt))
   { atom_t name;
@@ -234,15 +235,18 @@ PREDICATE(hdt_open, 3)
       return PL_type_error("option", opt);
   }
 
+  if ( !PL_get_file_name(A2, &name, PL_FILE_EXIST) )
+    return FALSE;
+
   try
   { if ( access == ATOM_map )
     { if ( indexed )
-	hdt = HDTManager::mapIndexedHDT(A2);
+	hdt = HDTManager::mapIndexedHDT(name);
       else
 	hdt = HDTManager::mapHDT(A2);
     } else if ( access == ATOM_load )
     { if ( indexed )
-	hdt = HDTManager::loadIndexedHDT(A2);
+	hdt = HDTManager::loadIndexedHDT(name);
       else
 	hdt = HDTManager::loadHDT(A2);
     } else
