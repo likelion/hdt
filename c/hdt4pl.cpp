@@ -755,7 +755,7 @@ PREDICATE(hdt_search_cost_id, 5)
   try
   { TripleID t(s,p,o);
     IteratorTripleID *it = symb->hdt->getTriples()->search(t);
-    int numResults = it->estimatedNumResults();
+    long numResults = it->estimatedNumResults();
     delete it;
     return (A5 = numResults);
   } CATCH_HDT;
