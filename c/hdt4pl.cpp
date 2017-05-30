@@ -665,10 +665,10 @@ get_search_id(term_t t, unsigned *id, unsigned flag, unsigned *flagp)
     *flagp |= flag;
     return TRUE;
   } else
-  { int i;
+  { int64_t i;
 
-    if ( PL_get_integer_ex(t, &i) )
-    { *id = (unsigned)i;
+    if ( PL_get_int64(t, &i) )
+    { *id = (unsigned int)i;
       return TRUE;
     }
   }
