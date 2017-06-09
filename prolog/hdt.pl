@@ -350,13 +350,14 @@ post_iri_id(HDT, Role, In, Id) :-
 %
 %	True if a triple with the indicated identifiers exists.
 
-%%	hdt_search_cost(HDT, ?S, ?P, ?O, -Cost:float) is det.
+%%	hdt_search_cost(HDT, ?S, ?P, ?O, -Cost:nonneg) is det.
 
 hdt_search_cost(HDT, S, P, O, Cost) :-
 	Triple   = t(S,P,O),
 	TripleID = t(SID,PID,OID),
 	hdt_pre_triple(HDT, Triple, TripleID),
-	hdt_search_cost_id(HDT, SID, PID, OID, Cost).
+	hdt_search_cost_id(HDT, SID, PID, OID, Cost), !.
+hdt_search_cost(_, _, _, _, 0).
 
 
 		 /*******************************
