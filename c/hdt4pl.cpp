@@ -631,13 +631,13 @@ PREDICATE(hdt_string_id, 4)
     { if ( PL_get_nchars(A3, &len, &s,
 			 CVT_ATOM|CVT_STRING|REP_UTF8|CVT_EXCEPTION) )
       { std::string str(s);
-	unsigned int id = dict->stringToId(str, roleid);
+	size_t id = dict->stringToId(str, roleid);
 
 	if ( id )
-	  return (A4 = (long)id);
+	  return (A4 = (long)id);	/* signed/unsigned mismatch */
       }
     } else
-    { std::string str = dict->idToString((unsigned int)(long)A4, roleid);
+    { std::string str = dict->idToString((size_t)(long)A4, roleid);
 
       if ( !str.empty() )
 	return (A3 = str.c_str());
@@ -655,16 +655,16 @@ typedef struct
 
 
 static int
-get_search_id(term_t t, unsigned *id, unsigned flag, unsigned *flagp)
+get_search_id(term_t t, size_t *id, unsigned flag, unsigned *flagp)
 { if ( PL_is_variable(t) )
   { *id = 0;
     *flagp |= flag;
     return TRUE;
   } else
-  { int i;
+  { size_t i;
 
-    if ( PL_get_integer_ex(t, &i) )
-    { *id = (unsigned)i;
+    if ( PL_get_size_ex(t, &i) )
+    { *id = i;
       return TRUE;
     }
   }
@@ -685,7 +685,7 @@ PREDICATE_NONDET(hdt_search_id, 4)
 
   switch(PL_foreign_control(handle))
   { case PL_FIRST_CALL:
-    { unsigned s, p, o;
+    { size_t s, p, o;
 
       ctx = &ctx_buf;
       if ( !get_hdt(A1, &symb) ||
@@ -740,7 +740,8 @@ PREDICATE_NONDET(hdt_search_id, 4)
 
 PREDICATE(hdt_search_cost_id, 5)
 { hdt_wrapper *symb;
-  unsigned s, p, o, flags=0;
+  unsigned int flags=0;
+  size_t s, p, o;
 
   if ( !get_hdt(A1, &symb) ||
        !get_search_id(A2, &s, S_S, &flags) ||
