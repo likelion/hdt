@@ -21,13 +21,31 @@ Unix-like machines. Installation on Windows requires more creativity.
     $ git clone https://github.com/JanWielemaker/hdt
     ```
 
-    b. Install the prerequisite libraries.  On Ubuntu:
+    b. Install a recent version of Serd:
 
-    ```
-    sudo apt-get install libserd-dev libraptor-dev
+    ```bash
+    curl -s http://download.drobilla.net/serd-0.26.0.tar.bz2 | tar -xj && \
+      cd serd-0.26.0 && \
+      ./waf configure && \
+      ./waf && \
+      sudo ./waf install;
     ```
 
-    c. Start SWI-Prolog and run
+    c. Install Raptor:
+
+       * On Fedora:
+
+       ```bash
+       sudo dnf install raptor2-devel
+       ```
+
+       * On Ubuntu:
+
+       ```bash
+       sudo apt-get install libraptor-dev
+       ```
+
+    d. Start SWI-Prolog and run
 
     ```prolog
     ?- pack_rebuild(hdt).
