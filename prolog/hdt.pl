@@ -249,7 +249,7 @@ post_object(O, HDT) :-
 
 %%	hdt_property(+HDT, ?Property) is nondet.
 %
-%	True of Property is a property of HTD.  Defined properties are
+%	True if Property is a property of HTD.  Defined properties are
 %
 %	  - mapping(-Mapping)
 %	  - max_id(-ID))
