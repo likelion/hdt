@@ -77,6 +77,7 @@
 	hdt_shared(+,r),
 	hdt_object(+,o),
 	hdt_subject_id(+, r, ?),
+	hdt_node(+, o),
 	hdt_predicate_id(+, r, ?),
 	hdt_object_id(+, o, ?),
 	hdt_search_cost(+, r, r, o, -).
