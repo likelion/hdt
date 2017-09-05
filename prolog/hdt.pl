@@ -43,6 +43,7 @@
 	    hdt_predicate/2,		% +HDT, -Predicate
 	    hdt_shared/2,		% +HDT, -Shared
 	    hdt_object/2,		% +HDT, -Object
+	    hdt_node/2,     % +HDT, ?Node
 
 	    hdt_suggestions/5,		% +HDT, +Base, +Role, +MaxCount, -List
 	    hdt_property/2,		% +HTD, -Property
@@ -142,6 +143,7 @@ header_untyped_object(S, O) :-
 %%	hdt_predicate(+HDT, -IRI) is nondet.
 %%	hdt_object(+HDT, -Object) is nondet.
 %%	hdt_shared(+HDT, -IRI) is nondet.
+%%	hdt_node(+HDT, ?Node) is nondet.
 %
 %	Enumerate possible values for the   individual components of the
 %	triples represented in the HDT. Note   that these enumarators do
@@ -189,6 +191,18 @@ hdt_object(HDT, Object) :-
 	;   hdt_search(HDT, _, _, Object)
 	->  true
 	).
+
+hdt_node(HDT, Node) :-
+  (   var(Node)
+  ->  (   hdt_column_(HDT, shared, Node)
+      ;   hdt_column_(HDT, subject, Node)
+      ;   hdt_column_(HDT, object, Node)
+      )
+  ;   hdt_search(HDT, Node, _, _)
+  ->  true
+  ;   hdt_search(HDT, _, _, Node)
+  ->  true
+  ).
 
 
 %%	pre_object(+HDT, ?O, -OHDT) is det.
