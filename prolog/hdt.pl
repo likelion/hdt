@@ -39,10 +39,10 @@
 	    hdt_search/4,		% +HDT, ?S,?P,?O
 	    hdt_header/4,		% +HDT, ?S,?P,?O
 
-	    hdt_subject/2,		% +HDT, -Subject
-	    hdt_predicate/2,		% +HDT, -Predicate
-	    hdt_shared/2,		% +HDT, -Shared
-	    hdt_object/2,		% +HDT, -Object
+	    hdt_subject/2,		% +HDT, ?Subject
+	    hdt_predicate/2,		% +HDT, ?Predicate
+	    hdt_shared/2,		% +HDT, ?Shared
+	    hdt_object/2,		% +HDT, ?Object
 	    hdt_node/2,     % +HDT, ?Node
 
 	    hdt_suggestions/5,		% +HDT, +Base, +Role, +MaxCount, -List
@@ -139,10 +139,10 @@ header_untyped_object(O0, O) :-
 header_untyped_object(S, O) :-
 	rdf_equal(O, S^^xsd:string).
 
-%%	hdt_subject(+HDT, -IRI) is nondet.
-%%	hdt_predicate(+HDT, -IRI) is nondet.
-%%	hdt_object(+HDT, -Object) is nondet.
-%%	hdt_shared(+HDT, -IRI) is nondet.
+%%	hdt_subject(+HDT, ?S) is nondet.
+%%	hdt_predicate(+HDT, ?P) is nondet.
+%%	hdt_object(+HDT, ?O) is nondet.
+%%	hdt_shared(+HDT, ?SO) is nondet.
 %%	hdt_node(+HDT, ?Node) is nondet.
 %
 %	Enumerate possible values for the   individual components of the
