@@ -194,16 +194,19 @@ hdt_object(HDT, Object) :-
 	).
 
 hdt_node(HDT, Node) :-
-  (   var(Node)
-  ->  (   hdt_column_(HDT, shared, Node)
-      ;   hdt_column_(HDT, subject, Node)
-      ;   hdt_column_(HDT, object, Node)
-      )
-  ;   hdt_search(HDT, Node, _, _)
-  ->  true
-  ;   hdt_search(HDT, _, _, Node)
-  ->  true
-  ).
+	(   var(Node)
+	->  (   hdt_column_(HDT, shared, Var),
+	        Var = Node
+	    ;   hdt_column_(HDT, subject, Var),
+	        Var = Node
+	    ;   hdt_object_(HDT, OHDT),
+	        post_object(Node, OHDT)
+	    )
+	;   hdt_search(HDT, Node, _, _)
+	->  true
+	;   hdt_search(HDT, _, _, Node)
+	->  true
+	).
 
 
 %%	pre_object(+HDT, ?O, -OHDT) is det.
