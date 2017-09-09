@@ -1,0 +1,217 @@
+# -*- mode: org; -*-
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://www.pirilampo.org/styles/readtheorg/css/readtheorg.css"/>
+#+HTML_HEAD: <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+#+HTML_HEAD: <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/lib/js/jquery.stickytableheaders.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="http://www.pirilampo.org/styles/readtheorg/js/readtheorg.js"></script>
+
+#+TITLE: Prolog API for HDT (rewrite) v0.2
+#+AUTHOR: Wouter Beek, Jan Wielemaker, Javier Fernández
+
+This document is an attempt to create a new API for using HDT storage
+in SWI-Prolog.  The code for the Prolog API for HDT is hosted on
+[[https://github.com/JanWielemaker/hdt][Github]].
+
+The new API will later be used to expose advanced HDT features, like
+term/ID translation, retrieval of terms by kind, and retrieval of
+random triples/terms.  The code for the HDT-Server is hosted on
+[[https://github.com/MaestroGraph/HDT-Server][Github]].
+
+The new functionality introduced in this document will be a direct
+enabler for innovative Data Science and Machine Learning use cases, as
+formulated in our recent SEMANTiCS paper on /LOD-a-lot/.
+Specifically, the new functionality introduced in this document will
+enable several use cases that are currently blocked in MaestroGraph.
+
+* API proposal
+** Predicates for working with HDT files
+
+Old API:
+
+#+BEGIN_SRC
+hdt_open/2,		% -HDT, +Path
+hdt_open/3,		% -HDT, +Path, +Options
+hdt_close/1,		% +HDT
+hdt_create_from_file/3, % +HDTFile, +RDFFile, +Options
+#+END_SRC
+
+New API:
+
+#+BEGIN_SRC
+hdt_create/1,	% +RDFFile
+hdt_create/2,	% +RDFFile, +HDTFile
+hdt_create/3,	% +RDFFile, +HDTFile, +Options
+
+hdt_open/2,	% +File, -HDT
+hdt_open/3,	% +File, -HDT, +Options
+hdt_close/1,	% +HDT
+#+END_SRC
+
+Changes:
+  1. Changed the name ~hdt_create_from_file/3~ to ~hdt_create/3~.
+  2. Changed the argument order for creating an HDT file: from an RDF
+     file (arg1) to an HDT file (arg2), i.o. the other way around.
+  3. Added wrapper predicate ~hdt_create/2~ that uses the default
+     options, and wrapper predicate ~hdt_create/1~ that used the base
+     name of the ~RDFFile~ for the ~HDTFile~.
+  4. Changed the argument order for opening an HDT file: from an HDT
+     file (arg1) to an HDT handle (arg2), i.o. the other way around.
+
+** Predicates for converting between terms and IDs
+
+Old API:
+
+#+BEGIN_SRC
+hdt_subject_id/3,	% +HDT, ?Subject, ?Id
+hdt_predicate_id/3,	% +HDT, ?Predicate, ?Id
+hdt_object_id/3,	% +HDT, ?Object, ?Id
+#+END_SRC
+
+New API:
+
+#+BEGIN_SRC
+hdt_term_id/4,	% +HDT, +Role, ?Term, ?ID
+#+END_SRC
+
+Changes:
+  1. The role is now given as an argument.
+  2. The role can now also be ~node~ or ~shared~.
+
+** Predicates for working with triples
+
+Old API:
+
+#+BEGIN_SRC
+hdt_search/4,		% +HDT, ?S,?P,?O
+hdt_search_cost/5,	% +HDT, ?S,?P,?O, -Cost
+hdt_search_id/4,	% +HDT, ?S,?P,?O
+#+END_SRC
+
+New API:
+
+#+BEGIN_SRC
+hdt/4,		% +HDT, ?S,?P,?O
+hdt_id/4,	% +HDT, ?SID,?PID,?OID
+
+hdt_count/5,	% +HDT, ?S,?P,?O, -Count
+hdt_count_id/5,	% +HDT, ?SID,?PID,?OID, -Count
+
+hdt_rnd/4,	% +HDT, ?S,?P,?O
+hdt_rnd_id/4,	% +HDT, ?SID,?PID,?OID
+#+END_SRC
+
+Changes:
+  1. Estimates/costs are now called counts.
+  2. Renamed ~hdt_search/4~ to ~hdt/4~.
+  3. Renamed ~hdt_search_cost/5~ to ~hdt_count/5~.
+  4. Renamed ~hdt_search_id/4~ to ~hdt_id/4~.
+  5. Added predicate for retrieving counts based on a Triple Pattern
+     specified by IDs (~hdt_id_count/5~).
+  6. Added predicates for retrieving random triples (~hdt_id_rnd/4~
+     for IDs; ~hdt_rnd/4~ for terms).
+
+** Predicates for working with terms
+
+Old API:
+
+#+BEGIN_SRC
+hdt_subject/2,		% +HDT, -Subject
+hdt_predicate/2,	% +HDT, -Predicate
+hdt_shared/2,		% +HDT, -Shared
+hdt_object/2,		% +HDT, -Object
+#+END_SRC
+
+New API:
+
+#+BEGIN_SRC
+hdt_term/3,		% +HDT, +Role, -Term
+hdt_term_id/3,		% +HDT, +Role, -ID
+
+hdt_term_count/3,	% +HDT, +Role, -Count
+
+hdt_term_id_rnd/3,	% +HDT, +Role, -ID
+hdt_term_rnd/3,		% +HDT, +Role, -Term
+#+END_SRC
+
+Changes:
+
+  1. The 4 old predicates are replaced by ~hdt_term/3~, where the type
+     of term is given in argument ~Role~.
+  2. ~Role~ can be ~object~, ~predicate~, ~shared~, or ~subject~, as
+     before, but also ~bnode~, ~iri~, ~literal~, ~name~, ~node~, or
+     ~term~.
+  3. Added a simple way to retrieve the number of terms of given
+     ~Role~ (~hdt_term_count/3~).
+  4. Added variant of ~hdt_term/3~ that enumerates IDs
+     (~hdt_term_id/3~).
+  5. Added predicate for retrieving random terms
+
+We do not allow ~Role~ to have value ~term~, because terms that are
+both predicates and nodes have two IDs.
+
+** Predicates for working with terms based on a prefix
+
+Old API:
+
+#+BEGIN_SRC
+hdt_suggestions/5, % +HDT, +Base, +Role, +MaxCount, -List
+#+END_SRC
+
+New API:
+
+#+BEGIN_SRC
+hdt_term/4,		% +HDT, +Role, +Prefix, -Term
+hdt_term_id/4,		% +HDT, +Role, +Prefix, -ID
+
+hdt_term_count/4,	% +HDT, +Role, +Prefix, -Count
+
+hdt_term_rnd/4,		% +HDT, +Role, +Prefix, -Term
+hdt_term_rnd_id/4,	% +HDT, +Role, +Prefix, -ID
+#+END_SRC
+
+Changes:
+  1. HDT suggestions are now an extension of the term predicates (see
+     previous section).
+
+** TODO A mapping between HDT files and named graphs
+
+Jan already has an API + implementation for this.
+
+** Other predicates
+
+Old API:
+
+#+BEGIN_SRC
+hdt_header/4,	% +HDT, ?S,?P,?O
+hdt_property/2,	% +HTD, -Property
+#+END_SRC
+
+These will not be changed in the new API.
+
+* TO-DO list for ~hdt-cpp~
+** TODO test ~goTo~ function, used by random functions
+** TODO store the offset of literals in the header
+** TODO store the offsets (S, P, O, and SO)  of IRIs in the header
+** TODO how to guarantee uniqueness for IRI enumeration?
+** TODO store the offsets (S, O, and SO) of blank nodes in the header
+* TO-DO list for ~hdt4swipl~
+** TODO test random function
+** TODO random function with IDs
+* TO-DO list for ~hdt.pl~
+** TODO ~hdt_open/3~
+swap argument 1 and 2
+** TODO ~hdt_rnd/4~
+** TODO ~hdt_rnd_id/4~
+** TODO ~hdt_term/3~
+*** TODO role ~bnode~
+*** TODO role ~iri~
+*** TODO role ~literal~
+*** TODO role ~term~
+** TODO ~hdt_term/4~
+** TODO ~hdt_term_count/4~
+** TODO ~hdt_term_id/3~
+** TODO ~hdt_term_rnd/3~
+** TODO ~hdt_term_rnd/4~
+** TODO ~hdt_term_rnd_id/3~
+** TODO ~hdt_term_rnd_id/4~
