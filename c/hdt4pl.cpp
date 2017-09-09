@@ -816,5 +816,3 @@ PREDICATE(hdt_create_from_file, 3)
 
   return TRUE;
 }
-
-

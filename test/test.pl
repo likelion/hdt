@@ -81,4 +81,3 @@ c(File) :-
 	hdt_close(HDT).
 
 :- endif.
-
