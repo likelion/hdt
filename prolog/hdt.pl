@@ -51,7 +51,7 @@
             hdt_count/5,		% +HDT, ?S,?P,?O, ?Count
 	    hdt_count_id/5,		% +HDT, ?SID,?PID,?OID, ?Count
 
-	   %hdt_rnd/4,			% +HDT, ?S,?P,?O
+	    hdt_rnd/4,			% +HDT, ?S,?P,?O
 	   %hdt_rnd_id/4,		% +HDT, ?SID,?PID,?OID
 
 	% TERMS
@@ -209,6 +209,19 @@ hdt_count(_, _,_,_, 0).
 hdt_count_id(HDT, SID,PID,OID, Count) :-
 	hdt_search_cost_id(HDT, SID,PID,OID, Count), !.
 hdt_count_id(_, _,_,_, 0).
+
+
+%%	hdt_rnd(+HDT, ?S,?P,?O) is nondet.
+
+hdt_rnd(HDT, S, P, O) :-
+       Triple   = t(S,P,O),
+       TripleID = t(SID,PID,OID),
+       hdt_pre_triple(HDT, Triple, TripleID),
+       hdt_rnd_id(HDT, SID, PID, OID),
+       hdt_post_triple(HDT, Triple, TripleID).
+
+
+%%	hdt_rnd_id(+HDT, ?SID,?PID,?OID) is nondet.
 
 
 

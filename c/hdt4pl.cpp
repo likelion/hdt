@@ -763,6 +763,35 @@ PREDICATE(hdt_search_cost_id, 5)
 }
 
 
+/** hdt_rnd_id(+HDT, +Node, -P, -O)
+ */
+
+PREDICATE(hdt_rnd_id, 4)
+{
+  hdt_wrapper *symb;
+  unsigned int flags=0;
+  size_t s, p, o;
+  if ( !get_hdt(A1, &symb) || !get_search_id(A2, &s, S_S, &flags))
+    return FALSE;
+  try {
+    TripleID pattern(s, p, o);
+    IteratorTripleID *it = symb->hdt->getTriples()->search(pattern);
+    size_t max = it->estimatedNumResults();
+    unsigned int index = 1 + (int)(max * rand() / (RAND_MAX + 1.0));
+    it->goTo(index);
+    if (it->hasNext()) {
+      TripleID *t = it->next();
+      bool rc = ( PL_unify_integer(A5, t->getPredicate()) &&
+                  PL_unify_integer(A6, t->getObject()));
+      delete it;
+      return rc;
+    }
+  } CATCH_HDT;
+  return FALSE;
+}
+
+
+
 		 /*******************************
 		 *	      GENERATE		*
 		 *******************************/
