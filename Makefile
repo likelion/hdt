@@ -17,9 +17,9 @@ c/hdt4pl.o: c/hdt4pl.cpp $(HDTHOME)/libhdt.a
 	$(CC) $(ARCH) $(CFLAGS) -c -o $@ c/hdt4pl.cpp
 
 $(HDTHOME)/.make-senitel:
-	[ ! -f $(HDTHOME)/Makefile ] || (cd $(HDTHOME) && git reset --hard)
 	git submodule update --init
-	sed -i 's/^FLAGS=-O3/FLAGS=-fPIC -O3/' $(HDTHOME)/Makefile
+	cd $(HDTHOME) && git reset --hard && git checkout develop
+	sed -i 's/FLAGS=-O3/FLAGS=-fPIC -O3/' $(HDTHOME)/Makefile
 	touch $@
 
 $(HDTHOME)/libhdt.a: $(HDTHOME)/.make-senitel

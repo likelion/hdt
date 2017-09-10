@@ -428,7 +428,7 @@ PREDICATE_NONDET(hdt_search, 5)
 /** hdt_suggestions(+HDT, +Role, +Prefix, -Term)
 */
 
-PREDICATE(hdt_suggestions, 4)
+PREDICATE_NONDET(hdt_suggestions, 4)
 { IteratorUCharString *it;
 
   switch(PL_foreign_control(handle))
@@ -445,12 +445,12 @@ PREDICATE(hdt_suggestions, 4)
         return FALSE;
 
       try
-      { it = symb->hdt->getDictionary()->getSuggestions(from, role);
+      { it = symb->hdt->getDictionary()->getSuggestions(prefix, role);
       } CATCH_HDT;
 
       goto next;
     }
-    case PL_REPO:
+    case PL_REDO:
       it = (IteratorUCharString*)PL_foreign_context_address(handle);
     next:
       if ( it->hasNext() )
