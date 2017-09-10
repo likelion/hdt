@@ -45,7 +45,7 @@
 	    hdt_object/2,		% +HDT, ?Object
 	    hdt_node/2,     % +HDT, ?Node
 
-	    hdt_suggestions/5,		% +HDT, +Base, +Role, +MaxCount, -List
+	    hdt_suggestions/4,		% +HDT, +Role, +Prefix, -Term
 	    hdt_property/2,		% +HTD, -Property
 
 	    hdt_subject_id/3,		% +HDT, ?Subject, ?Id
@@ -227,10 +227,8 @@ pre_object(HDT, O, OHDT) :-
 	O = String@Lang,
 	ground(String),
 	atomics_to_string(["\"", String, "\"@"], Prefix),
-	hdt_suggestions(HDT, Prefix, object, 1000, List),
-	length(List, Found),
-	Found < 1000, !,		% we got them all
-	member(_@Lang, List),
+	hdt_suggestions(HDT, object, Prefix, Term),
+        Term = String@Lang,
 	canonical_string(String@Lang, OHDT).
 pre_object(_, _, _).
 
@@ -253,15 +251,8 @@ post_object(O, HDT) :-
 	rdf_canonical_literal(HDT, O).
 
 
-%%	hdt_suggestions(+HDT, +Base, +Role, +MaxResults, -Results:list) is det.
+%%	hdt_suggestions(+HDT, +Role, +Prefix, -Term) is nondet.
 %
-%	True when Results is a  list  of   suggestions  for  Base in the
-%	triple role Role. Some experimentation   suggests  it performs a
-%	prefix match on the internal string representation. This implies
-%	that literals are only found if the   first character of Base is
-%	`"`.
-%
-%	@arg Base is a string or atom
 %	@arg Role is one of `subject`, `predicate` or `object`
 
 
