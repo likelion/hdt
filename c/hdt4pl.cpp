@@ -209,7 +209,7 @@ hdt_error(const char *e)
 		 *******************************/
 
 
-PREDICATE(hdt_open, 3)
+PREDICATE(hdt_open_, 3)
 { HDT *hdt;
   atom_t access = ATOM_map;
   int indexed = TRUE;
@@ -265,7 +265,7 @@ PREDICATE(hdt_open, 3)
 }
 
 
-PREDICATE(hdt_close, 1)
+PREDICATE(hdt_close_, 1)
 { hdt_wrapper *symb;
 
   if ( !get_hdt(A1, &symb) )
@@ -357,10 +357,10 @@ unify_object(term_t t, const char *s)
 }
 
 
-/** hdt_search(+HDT, +Where, ?S, ?P, ?O)
+/** hdt_(+HDT, +Where, ?S, ?P, ?O)
 */
 
-PREDICATE_NONDET(hdt_search, 5)
+PREDICATE_NONDET(hdt_, 5)
 { hdt_wrapper *symb;
   search_it ctx_buf = {0};
   search_it *ctx;
@@ -425,10 +425,10 @@ PREDICATE_NONDET(hdt_search, 5)
 }
 
 
-/** hdt_suggestions(+HDT, +From, +Role, +MaxCount, -Suggestions)
+/** hdt_prefix_(+HDT, +From, +Role, +Prefix, -Term)
 */
 
-PREDICATE(hdt_suggestions, 5)
+PREDICATE(hdt_prefix_, 5)
 { hdt_wrapper *symb;
   TripleComponentRole role;
   char *from;
@@ -508,7 +508,7 @@ PREDICATE(hdt_property_, 2)
 }
 
 
-PREDICATE_NONDET(hdt_column_, 3)
+PREDICATE_NONDET(hdt_term_, 3)
 { IteratorUCharString *it;
 
   switch(PL_foreign_control(handle))
@@ -531,7 +531,7 @@ PREDICATE_NONDET(hdt_column_, 3)
 	else if ( a == ATOM_object )
 	  it = dict->getObjects();
 	else
-	  return PL_domain_error("hdt_column", A2);
+	  return PL_domain_error("hdt_term", A2);
       } CATCH_HDT;
 
       goto next;
@@ -616,10 +616,10 @@ get_triple_role(term_t t, TripleComponentRole *role)
 }
 
 
-/** hdt_string_id(+HDT, +Role, ?String, ?Id)
+/** hdt_term_id_(+HDT, +Role, ?String, ?Id)
 */
 
-PREDICATE(hdt_string_id, 4)
+PREDICATE(hdt_term_id_, 4)
 { hdt_wrapper *symb;
   TripleComponentRole roleid;
   size_t len; char *s;
@@ -678,10 +678,10 @@ get_search_id(term_t t, size_t *id, unsigned flag, unsigned *flagp)
 
 
 
-/** hdt_search_id(+HDT, ?S, ?P, ?O)
+/** hdt_id_(+HDT, ?SId, ?PId, ?OId)
 */
 
-PREDICATE_NONDET(hdt_search_id, 4)
+PREDICATE_NONDET(hdt_id_, 4)
 { hdt_wrapper *symb;
   searchid_it ctx_buf = {0};
   searchid_it *ctx;
@@ -739,10 +739,10 @@ PREDICATE_NONDET(hdt_search_id, 4)
 }
 
 
-/** hdt_search_cost_id(+HDT, ?S, ?P, ?O, -Cost)
+/** hdt_count_id_(+HDT, ?S, ?P, ?O, -Count)
 */
 
-PREDICATE(hdt_search_cost_id, 5)
+PREDICATE(hdt_count_id_, 5)
 { hdt_wrapper *symb;
   unsigned int flags=0;
   size_t s, p, o;
@@ -763,16 +763,21 @@ PREDICATE(hdt_search_cost_id, 5)
 }
 
 
-/** hdt_rnd_id(+HDT, +Node, -P, -O)
+/** hdt_rnd_id_(+HDT, +Node, -P, -O)
  */
 
-PREDICATE(hdt_rnd_id, 4)
+PREDICATE(hdt_rnd_id_, 4)
 {
   hdt_wrapper *symb;
   unsigned int flags=0;
   size_t s, p, o;
-  if ( !get_hdt(A1, &symb) || !get_search_id(A2, &s, S_S, &flags))
+  searchid_it *ctx;
+  if ( !get_hdt(A1, &symb) ||
+       !get_search_id(A2, &s, S_S, &ctx->flags) ||
+       !get_search_id(A3, &p, S_P, &ctx->flags) ||
+       !get_search_id(A4, &o, S_O, &ctx->flags) )
     return FALSE;
+
   try {
     TripleID pattern(s, p, o);
     IteratorTripleID *it = symb->hdt->getTriples()->search(pattern);
@@ -781,8 +786,10 @@ PREDICATE(hdt_rnd_id, 4)
     it->goTo(index);
     if (it->hasNext()) {
       TripleID *t = it->next();
-      bool rc = ( PL_unify_integer(A5, t->getPredicate()) &&
-                  PL_unify_integer(A6, t->getObject()));
+      bool rc =
+        ( (!(ctx->flags&S_S) || PL_unify_integer(A2, t->getSubject())) &&
+          (!(ctx->flags&S_P) || PL_unify_integer(A3, t->getPredicate())) &&
+          (!(ctx->flags&S_O) || PL_unify_integer(A4, t->getObject())) );
       delete it;
       return rc;
     }
@@ -797,13 +804,13 @@ PREDICATE(hdt_rnd_id, 4)
 		 *******************************/
 
 /**
- * hdt_create_from_file(+HDTFile, +RDFFile, +Options)
+ * hdt_create_(+HDTFile, +RDFFile, +Options)
  *
  * @tbd Fill HDTSpecification
  * @tbd Allow additional header triples
  */
 
-PREDICATE(hdt_create_from_file, 3)
+PREDICATE(hdt_create_, 3)
 { char *hdt_file, *rdf_file;
   HDTSpecification spec;
   char *base_uri = (char*)"http://example.org/base";

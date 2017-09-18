@@ -190,7 +190,7 @@ hdt_property/2,	% +HTD, -Property
 These will not be changed in the new API.
 
 * TO-DO list for ~hdt-cpp~
-** TODO test ~goTo~ function, used by random functions
+** DONE test ~goTo~ function, used by random functions
 ** TODO store the offset of literals in the header
 ** TODO store the offsets (S, P, O, and SO)  of IRIs in the header
 ** TODO how to guarantee uniqueness for IRI enumeration?

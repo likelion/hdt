@@ -32,363 +32,464 @@
     POSSIBILITY OF SUCH DAMAGE.
 */
 
-:- module(hdt, [
-	% HDT FILES
-	    hdt_create/2,		% +RDFFile, +HDTFile
-	    hdt_create/3,		% +RDFFile, +HDTFile, +Options
+:- module(
+   hdt,
+   [
+   % HDT FILES
+     hdt_create/2,      % +RdfFile, +HdtFile
+     hdt_create/3,      % +RdfFile, +HdtFile, +Options
+     hdt_graph/2,       % ?Hdt, ?G
+     hdt_open/2,        % +File, -Hdt
+     hdt_open/3,        % +File, -Hdt, +Options
+     hdt_close/1,       % +Hdt
 
-	    hdt_open/2,			% +File, -HDT
-	    hdt_open/3,			% +File, -HDT, +Options
-	    hdt_close/1,		% +HDT
+   % TERM ↔ ID
+     hdt_term_id/4,     % +Hdt, +Role, ?Term, ?Id
 
-	% TERM ↔ ID
-	    hdt_term_id/4,		% +HDT, +Role, ?Term, ?ID
+   % TRIPLES
+     hdt/4,             % +Hdt, ?S,?P,?O
+     hdt_id/4,          % +Hdt, ?SId, ?PId, ?OId
+     hdt_count/5,       % +Hdt, ?S, ?P, ?O, ?Count
+     hdt_count_id/5,    % +Hdt, ?SId, ?PId, ?OId, ?Count
+     hdt_rnd/4,         % +Hdt, ?S, ?P, ?O
+     hdt_rnd_id/4,      % +Hdt, ?SId, ?PId, ?OId
 
-	% TRIPLES
-	    hdt/4,			% +HDT, ?S,?P,?O
-	    hdt_id/4,			% +HDT, ?SID,?PID,?OID
+   % TERMS
+     hdt_term/3,        % +Hdt, +Role, ?Term
+     %hdt_term_id/3,     % +Hdt, +Role, ?Id
+     %hdt_term_count/3,  % +Hdt, +Role, ?Count
+     %hdt_term_rnd/3,    % +Hdt, +Role, -Term
+     %hdt_term_rnd_id/3, % +Hdt, +Role, -Id
 
-            hdt_count/5,		% +HDT, ?S,?P,?O, ?Count
-	    hdt_count_id/5,		% +HDT, ?SID,?PID,?OID, ?Count
+   % PREFIX SEARCH
+     %hdt_term/4,        % +Hdt, +Role, +Prefix, ?Term
+     %hdt_term_id/4,     % +Hdt, +Role, +Prefix, ?Id
+     %hdt_term_count/4,  % +Hdt, +Role, +Prefix, ?Count
+     %hdt_term_rnd/4,    % +Hdt, +Role, +Prefix, -Term
+     %hdt_term_rnd_id/4, % +Hdt, +Role, +Prefix, -Id
 
-	    hdt_rnd/4,			% +HDT, ?S,?P,?O
-	   %hdt_rnd_id/4,		% +HDT, ?SID,?PID,?OID
+   % OTHERS
+     hdt_header/4,      % +Hdt, ?S,?P,?O
+     hdt_property/2,    % +HTD, -Property
+     op(110, xfx, @),   % must be above `.'
+     op(650, xfx, ^^)   % must be above `:'
+   ]
+).
 
-	% TERMS
-	    hdt_term/3,			% +HDT, +Role, ?Term
-	   %hdt_term_id/3,		% +HDT, +Role, ?ID
+/** <module> Access HDT (Header Dictionary Triples) files
 
-	   %hdt_term_count/3,		% +HDT, +Role, ?Count
+@author Jan Wielemaker
+@author Wouter Beek
+@version 2017-09-18
+*/
 
-	   %hdt_term_rnd/3,		% +HDT, +Role, -Term
-	   %hdt_term_rnd_id/3,		% +HDT, +Role, -ID
-
-	% TERMS BY PREFIX
-	   %hdt_term/4,			% +HDT, +Role, +Prefix, ?Term
-	   %hdt_term_id/4,		% +HDT, +Role, +Prefix, ?ID
-
-	   %hdt_term_count/4,		% +HDT, +Role, +Prefix, ?Count
-
-	   %hdt_term_rnd/4,		% +HDT, +Role, +Prefix, -Term
-	   %hdt_term_rnd_id/4,		% +HDT, +Role, +Prefix, -ID
-
-	% OTHERS
-	    hdt_header/4,		% +HDT, ?S,?P,?O
-	    hdt_property/2,		% +HTD, -Property
-	    op(110, xfx, @),		% must be above .
-	    op(650, xfx, ^^)		% must be above :
-	  ]).
+:- use_module(library(error)).
+:- use_module(library(lists)).
+:- use_module(library(option)).
 :- use_module(library(semweb/rdf11)).
 :- use_module(library(sgml)).
-:- use_module(library(lists)).
 
 :- use_foreign_library(foreign(hdt4pl)).
 
-/** <module> Access HDT (Header Dictionary Triples) files
-*/
+:- dynamic
+    hdt_graph_/2.
 
 :- rdf_meta
-	hdt_term_id(+, +, t, ?),
-	hdt(+, r, r, o),
-	hdt_count(+, r, r, o, -),
-	%hdt_rnd(+, r, r, o),
-	hdt_term(+, +, t),
-	hdt_term(+, +, +, r),
-	hdt_header(+, r, r, o).
+   hdt(+, r, r, o),
+   hdt_close_graph(r),
+   hdt_count(+, r, r, o, -),
+   hdt_graph(?, r),
+   hdt_header(+, r, r, o),
+   hdt_rnd(+, r, r, o),
+   hdt_term(+, +, t),
+   hdt_term(+, +, +, r),
+   hdt_term_id(+, +, t, ?).
 
 
 
-		 /*******************************
-		 *	 FILE OPERATIONS	*
-		 *******************************/
 
-%%	hdt_create(+RDFFile, +HDTFile)
-%%	hdt_create(+RDFFile, +HDTFile, +Options)
+
+% FILE OPERATIONS %
+
+%! hdt_close(+Hdt) is det.
 %
-%	Create an HDT file from an uncompressed N-Triples file.
-%	Options:
+% Close an HDT that was previously opened with hdt_open/[2,3].
+
+hdt_close(hdt(Hdt)) :- !,
+  hdt_close_(Hdt).
+hdt_close(G) :- !,
+  with_mutex(hdt_graph_, (
+    hdt_graph_(Hdt, G),
+    hdt_close(hdt(Hdt)),
+    retractall(hdt_graph_(_,G))
+  )).
+
+
+
+%! hdt_create(+RdfFile:atom, +HdtFile:atom) is det.
+%! hdt_create(+RdfFile:atom, +HdtFile:atom, +Options:list(compound)) is det.
 %
-%	  * base_uri(+URI)
-%	  URI is used for generating the header properties (see
-%	  http_header/4.
-
-hdt_create(RDFFile, HDTFile) :-
-	hdt_create(RDFFile, HDTFile, []).
-
-
-hdt_create(RDFFile, HDTFile, Options) :-
-	hdt_create_from_file(HDTFile, RDFFile, Options).
-
-
-%%	hdt_open(+File, -HDT) is det.
-%%	hdt_open(+File, -HDT, +Options) is det.
+% Create an HDT file from an uncompressed N-Triples file.
 %
-%	Open an existing HDT file and unify HDT with a handle to it. The
-%	handle is an opaque symbol  that   is  subject to (atom) garbage
-%	collection.  Options:
+% The following Options are supported:
 %
-%	  - access(+Access)
-%	  How the file is accessed. On of `map` (map the file
-%	  into memory, default) or `load` (load the content of the
-%	  file).
-%	  - indexed(+Boolean)
-%	  Whether an index is created. Default is `true`. Such an index
-%	  is needed for partially instantiated calls to hdt_search/4.
-%	  The index is maintained in a file with extension `.index`
-%	  in the same directory as the HDT file.  An index is not needed
-%	  if you only want to extract _all_ triples.
+%    * base_uri(+URI:atom)
+%    URI is used for generating the header properties (see
+%    http_header/4.
 
-hdt_open(File, HDT) :-
-	hdt_open(HDT, File, []).
+hdt_create(RdfFile, HdtFile) :-
+  hdt_create(RdfFile, HdtFile, []).
 
 
-%%	hdt_close(+HDT) is det.
+hdt_create(RdfFile, HdtFile, Options) :-
+  hdt_create_(HdtFile, RdfFile, Options).
+
+
+
+%! hdt_graph(+Hdt:blob, +G:atom) is semidet.
+%! hdt_graph(+Hdt:blob, -G:atom) is semidet.
+%! hdt_graph(-Hdt:blob, +G:atom) is semidet.
+%! hdt_graph(-Hdt:blob, -G:atom) is nondet.
+
+hdt_graph(Hdt, G) :-
+  with_mutex(hdt_graph_, (
+    hdt_graph_(Hdt, G)
+  )).
+
+
+
+%! hdt_open(+File:atom, -Hdt:blob) is det.
+%! hdt_open(+File:atom, -Hdt:blob, +Options:list(compound)) is det.
 %
-%	Close an HDT that was previously opened with hdt_open/[2,3].
-
-
-
-		 /*******************************
-		 *	     TERM ↔ ID		*
-		 *******************************/
-
-%%	hdt_term_id(+HDT, +Role, +Term, +ID) is semidet.
-%%	hdt_term_id(+HDT, +Role, +Term, -ID) is det.
-%%	hdt_term_id(+HDT, +Role, -Term, +ID) is det.
+% Open an existing HDT file and unify Hdt with a handle to it.  The
+% handle is an opaque symbol that is subject to (atom) garbage
+% collection.
 %
-%	@arg Role is one of `subject`, `predicate` or `object`
-
-hdt_term_id(HDT, subject, Term, ID) :-
-	hdt_subject_id(HDT, Term, ID).
-hdt_term_id(HDT, predicate, Term, ID) :-
-	hdt_predicate_id(HDT, Term, ID).
-hdt_term_id(HDT, object, Term, ID) :-
-	hdt_object_id(HDT, Term, ID).
-
-
-
-		 /*******************************
-		 *	      TRIPLES		*
-		 *******************************/
-
-%%	hdt(+HDT, ?S,?P,?O) is nondet.
+% The following Options are supported:
 %
-%	True if 〈S,P,O〉 is a translated triple in HDT.
-
-hdt(HDT, S,P,O) :-
-	pre_object(HDT, O, OHDT),
-	hdt_search(HDT, content, S, P, OHDT),
-	post_object(O, OHDT).
-
-
-%!	hdt_id(+HDT, ?SID,?PID,?OID) is nondet.
+%   * access(+oneof([load,map]))
 %
-%	True if 〈SID,SIP,SIO〉 is a triple in HDT.
-
-hdt_id(HDT, SID,PID,OID) :-
-	hdt_search_id(HDT, SID,PID,OID).
-
-
-%%	hdt_count(HDT, ?S,?P,?O, +Count:nonneg) is semidet.
-%%	hdt_count(HDT, ?S,?P,?O, -Count:nonneg) is det.
+%   How the file is accessed.  On of `map` (map the file into memory,
+%   default) or `load` (load the content of the file).
 %
-%	True if Count is the number of matches of the Triple Pattern
-%	〈S,P,O〉 on the graph stored in HDT.
+%   * graph(+atom)
+%
+%   An alias by which one can refer to the opaque Hdt handle.  This
+%   alias acts as a name for the graph, or set of triples, that is
+%   contained in the HDT file.
+%
+%   * indexed(+boolean)
+%
+%   Whether or not an index file is created.  Default is `true`.
+%
+%   An index is needed for partially instantiated calls to hdt/4, but
+%   not for retrieving all statements (Triple Pattern 〈?,?,?〉).
+%
+%   The index is maintained in a file with extension `.index` in the
+%   same directory as the HDT file.
 
-hdt_count(HDT, S,P,O, Count) :-
-	Triple   = t(S,P,O),
-	TripleID = t(SID,PID,OID),
-	hdt_pre_triple(HDT, Triple, TripleID),
-	hdt_search_cost_id(HDT, SID,PID,OID, Count), !.
+hdt_open(File, Hdt) :-
+  hdt_open(Hdt, File, []).
+
+
+hdt_open(File, Hdt, Options1) :-
+  (   select_option(graph(G), Options1, Options2)
+  ->  hdt_register_graph_(Hdt, G)
+  ;   Options2 = Options1
+  ),
+  hdt_open_(File, Hdt, Options2).
+
+
+
+
+
+% TERM ↔ ID %
+
+%! hdt_term_id(+Hdt, +Role, +Term, +Id) is semidet.
+%! hdt_term_id(+Hdt, +Role, +Term, -Id) is det.
+%! hdt_term_id(+Hdt, +Role, -Term, +Id) is det.
+%
+% @arg Role is one of `subject`, `predicate` or `object`.
+
+hdt_term_id(Hdt0, Role, Term, Id) :- !,
+  hdt_blob(Hdt0, Hdt),
+  (   Role == object
+  ->  pre_object(Hdt, Term, Var),
+      hdt_term_id_(Hdt, object, Var, Id),
+      post_object(Term, Var)
+  ;   hdt_term_id_(Hdt, Role, Term, Id)
+  ).
+
+
+
+
+
+% TRIPLES %
+
+%! hdt(+Hdt, ?S, ?P, ?O) is nondet.
+%
+% True if 〈S,P,O〉 is an RDF triple in HDT.
+
+hdt(Hdt0, S, P, O) :-
+  hdt_blob(Hdt0, Hdt),
+  pre_object(Hdt, O, O0),
+  hdt_(Hdt, content, S, P, O0),
+  post_object(O, O0).
+
+
+
+%! hdt_id(+Hdt, ?SId:nonneg, ?PId:nonneg, ?OId:nonneg) is nondet.
+%
+% True if 〈SId,SIP,SIO〉 is an integer triple in Hdt.
+
+hdt_id(Hdt0, SId, PId, OId) :-
+  hdt_blob(Hdt0, Hdt),
+  hdt_id_(Hdt, SId, PId, OId).
+
+
+
+%! hdt_count(+Hdt, ?S, ?P, ?O, +Count:nonneg) is semidet.
+%! hdt_count(+Hdt, ?S, ?P, ?O, -Count:nonneg) is det.
+%
+% True if Count is the number of matches of the Triple Pattern〈S,P,O〉
+% on the graph stored in HDT.
+
+hdt_count(Hdt0, S, P, O, Count) :-
+  hdt_blob(Hdt0, Hdt),
+  Triple = t(S,P,O),
+  TripleId = t(SId,PId,OId),
+  hdt_pre_triple(Hdt, Triple, TripleId),
+  hdt_count_id_(Hdt, SId, PId, OId, Count), !.
 hdt_count(_, _,_,_, 0).
 
 
-%!	hdt_count_id(+HDT, ?SID,?PID,?OID, +Count:nonneg) is semidet.
-%!	hdt_count_id(+HDT, ?SID,?PID,?OID, -Count:nonneg) is det.
 
-hdt_count_id(HDT, SID,PID,OID, Count) :-
-	hdt_search_cost_id(HDT, SID,PID,OID, Count), !.
+%! hdt_count_id(+Hdt, ?SId, ?PId, ?OId, +Count:nonneg) is semidet.
+%! hdt_count_id(+Hdt, ?SId, ?PId, ?OId, -Count:nonneg) is det.
+
+hdt_count_id(Hdt0, SId, PId, OId, Count) :-
+  hdt_blob(Hdt0, Hdt),
+  hdt_count_id_(Hdt, SId, PId, OId, Count), !.
 hdt_count_id(_, _,_,_, 0).
 
 
-%%	hdt_rnd(+HDT, ?S,?P,?O) is nondet.
 
-hdt_rnd(HDT, S, P, O) :-
-       Triple   = t(S,P,O),
-       TripleID = t(SID,PID,OID),
-       hdt_pre_triple(HDT, Triple, TripleID),
-       hdt_rnd_id(HDT, SID, PID, OID),
-       hdt_post_triple(HDT, Triple, TripleID).
+%! hdt_rnd(+Hdt, ?S, ?P, ?O) is nondet.
 
-
-%%	hdt_rnd_id(+HDT, ?SID,?PID,?OID) is nondet.
-
+hdt_rnd(Hdt0, S, P, O) :-
+  hdt_blob(Hdt0, Hdt),
+  Triple = t(S,P,O),
+  TripleId = t(SId,PId,OId),
+  hdt_pre_triple(Hdt, Triple, TripleId),
+  hdt_rnd_id(Hdt, SId, PId, OId),
+  hdt_post_triple(Hdt, Triple, TripleId).
 
 
-		 /******************
-		 *	TERMS	   *
-		 ******************/
 
-%%	hdt_term(+HDT, +Role, +Term) is semidet.
-%%	hdt_term(+HDT, +Role, -Term) is nondet.
+%! hdt_rnd_id(+Hdt, ?SId, ?PId, ?OId) is nondet.
+
+hdt_rnd_id(Hdt0, SId, PId, OId) :-
+  hdt_blob(Hdt0, Hdt),
+  hdt_rnd_id_(Hdt, SId, PId, OId).
+
+
+
+
+
+% TERMS %
+
+%! hdt_term(+Hdt, +Role, +Term) is semidet.
+%! hdt_term(+Hdt, +Role, -Term) is nondet.
 %
-%	@arg Term is either of the following term types:
-%	- bnode
-%	- iri
-%	- literal
-%	- name
-%	or either of the following term positions:
-%	- node
-%	- object
-%	- predicate
-%	- shared
-%	- subject
+%  @arg Role is either of the following term types:
+%  - bnode
+%  - iri
+%  - literal
+%  - name
+%  or either of the following term positions:
+%  - node
+%  - object
+%  - predicate
+%  - shared
+%  - subject
 
 % name
-hdt_term(HDT, name, Name) :-
-	hdt_term(HDT, iri, Name).
-hdt_term(HDT, name, Name) :-
-	hdt_term(HDT, literal, Name).
+hdt_term(Hdt, name, Name) :-
+  hdt_term(Hdt, iri, Name).
+hdt_term(Hdt, name, Name) :-
+  hdt_term(Hdt, literal, Name).
 % node
-hdt_term(HDT, node, Node) :-
-	(   var(Node)
-	->  (   hdt_column_(HDT, shared, Var),
-	        Var = Node
-	    ;   hdt_column_(HDT, subject, Var),
-	        Var = Node
-	    ;   hdt_object_(HDT, Var),
-	        post_object(Node, Var)
-	    )
-	;   hdt_search(HDT, Node,_,_)
-	->  true
-	;   hdt_search(HDT, _,_,Node)
-	->  true
-	).
+hdt_term(Hdt, node, Node) :-
+  (   var(Node)
+  ->  (   hdt_term_(Hdt, shared, Var),
+          Var = Node
+      ;   hdt_term_(Hdt, subject, Var),
+          Var = Node
+      ;   hdt_object_(Hdt, Var),
+          post_object(Node, Var)
+      )
+  ;   hdt_(Hdt, content, Node, _, _)
+  ->  true
+  ;   pre_object(Hdt, Node, Var),
+      hdt_(Hdt, content, _, _, Var)
+  ->  true
+  ).
 % object
-hdt_term(HDT, object, O) :-
-	(   var(O)
-	->  (   hdt_column_(HDT, shared, Var),
-	        Var = O
-	    ;	hdt_object_(HDT, Var),
-		post_object(O, Var)
-	    )
-	;   hdt(HDT, _,_,O)
-	->  true
-	).
+hdt_term(Hdt, object, O) :-
+  (   var(O)
+  ->  (   hdt_term_(Hdt, shared, Var),
+          Var = O
+      ;   hdt_object_(Hdt, Var),
+          post_object(O, Var)
+      )
+  ;   pre_object(Hdt, O, Var),
+      hdt_(Hdt, content, _, _, Var)
+  ->  true
+  ).
 % predicate
-hdt_term(HDT, predicate, P) :-
-	(   var(P)
-	->  hdt_column_(HDT, predicate, Var),
-	    Var = P
-	;   hdt(HDT, _,P,_)
-	->  true
-	).
+hdt_term(Hdt, predicate, P) :-
+  (   var(P)
+  ->  hdt_term_(Hdt, predicate, Var),
+      Var = P
+  ;   hdt_(Hdt, content, _, P, _)
+  ->  true
+  ).
 % shared
-hdt_term(HDT, shared, Shared) :-
-	(   var(Shared)
-	->  hdt_column_(HDT, shared, Var),
-	    Var = Shared
-	;   rdf_is_subject(Shared),
-	    hdt(HDT, Shared,_,_),
-	    hdt(HDT, _,_,Shared)
-	->  true
-	).
+hdt_term(Hdt, shared, Shared) :-
+  (   var(Shared)
+  ->  hdt_term_(Hdt, shared, Var),
+      Var = Shared
+  ;   rdf_is_subject(Shared),
+      hdt_(Hdt, content, Shared, _, _),
+      hdt_(Hdt, content, _, _, Shared)
+  ->  true
+  ).
 % subject
-hdt_term(HDT, subject, S) :-
-	(   var(S)
-	->  (   hdt_column_(HDT, shared, Var)
-	    ;	hdt_column_(HDT, subject, Var)
-	    ),
-	    Var = S
-	;   hdt_search(HDT, S, _, _)
-	->  true
-	).
-
-
-%%	hdt_term(+HDT, +Role, +Prefix, +Term) is semidet.
-%%	hdt_term(+HDT, +Role, +Prefix, -Term) is nondet.
-
-%%	hdt_term_count(+HDT, +Role, -Count:nonneg) is nondet.
-
-hdt_term_count(HDT, node, Count) :-
-	maplist(hdt_term_count(HDT), [object,shared,subject], Counts),
-	sum_list(Counts, Count).
-hdt_term_count(HDT, object, Count) :-
-	hdt_header(HDT, _, '<http://rdfs.org/ns/void#distinctObjects>', Count^^_).
-hdt_term_count(HDT, predicate, Count) :-
-	hdt_header(HDT, _, '<http://rdfs.org/ns/void#properties>', Count^^_).
-hdt_term_count(HDT, shared, Count) :-
-	hdt_header(HDT, _, '<http://purl.org/HDT/hdt#dictionarynumSharedSubjectObject>', Count^^_).
-hdt_term_count(HDT, subject, Count) :-
-	hdt_header(HDT, _, '<http://rdfs.org/ns/void#distinctSubjects>', Count^^_).
-
-
-%%	hdt_term_count(+HDT, +Role, +Prefix:atom, -Count:nonneg) is nondet.
-
-%%	hdt_term_id(+HDT, +Role, -ID) is nondet.
-
-%%	hdt_term_rnd(+HDT, +Role, -Term) is nondet.
-
-%%	hdt_term_rnd(+HDT, +Role, +Prefix, -Term) is nondet.
-
-%%	hdt_term_rnd_id(+HDT, +Role, -ID) is nondet.
-
-%%	hdt_term_rnd_id(+HDT, +Role, +Prefix, -ID) is nondet.
+hdt_term(Hdt, subject, S) :-
+  (   var(S)
+  ->  (   hdt_term_(Hdt, shared, Var)
+      ;   hdt_term_(Hdt, subject, Var)
+      ),
+      Var = S
+  ;   hdt_(Hdt, content, S, _, _)
+  ->  true
+  ).
 
 
 
-		 /*******************************
-		 *	      OTHERS		*
-		 *******************************/
+%! hdt_term_count(+Hdt, +Role, -Count:nonneg) is nondet.
 
-%%	hdt_header(+HDT, ?S,?P,?O) is nondet.
+hdt_term_count(Hdt, node, Count) :-
+  maplist(hdt_term_count(Hdt), [object,shared,subject], Counts),
+  sum_list(Counts, Count).
+hdt_term_count(Hdt, object, Count) :-
+  hdt_header(Hdt, _, '<http://rdfs.org/ns/void#distinctObjects>', Count^^_).
+hdt_term_count(Hdt, predicate, Count) :-
+  hdt_header(Hdt, _, '<http://rdfs.org/ns/void#properties>', Count^^_).
+hdt_term_count(Hdt, shared, Count) :-
+  hdt_header(Hdt, _, '<http://purl.org/HDT/hdt#dictionarynumSharedSubjectObject>', Count^^_).
+hdt_term_count(Hdt, subject, Count) :-
+  hdt_header(Hdt, _, '<http://rdfs.org/ns/void#distinctSubjects>', Count^^_).
+
+
+
+%! hdt_term_count(+Hdt, +Role, +Prefix:atom, -Count:nonneg) is nondet.
+
+
+
+%! hdt_term_id(+Hdt, +Role, -Id) is nondet.
+
+
+
+%! hdt_term_rnd(+Hdt, +Role, -Term) is nondet.
+
+
+
+%! hdt_term_rnd(+Hdt, +Role, +Prefix, -Term) is nondet.
+
+
+
+%! hdt_term_rnd_id(+Hdt, +Role, -Id) is nondet.
+
+
+
+%! hdt_term_rnd_id(+Hdt, +Role, +Prefix, -Id) is nondet.
+
+
+
+
+
+% PREFIX SEARCH %
+
+%! hdt_prefix(+Hdt, +Role, +Prefix, +Term) is semidet.
+%! hdt_prefix(+Hdt, +Role, +Prefix, -Term) is nondet.
+
+hdt_prefix(Hdt0, Role, Prefix, Term) :-
+  hdt_blob(Hdt0, Hdt),
+  hdt_prefix_(Hdt, Role, Prefix, Term).
+
+
+
+
+
+% OTHERS %
+
+%! hdt_header(+Hdt, ?S, ?P, ?O) is nondet.
 %
-%	True if 〈S,P,O〉 is a triple in the header of HDT.
+% True if 〈S,P,O〉 is a triple in the header of Hdt.
 
-hdt_header(HDT, S, P, O) :-
-	hdt_search(HDT, header, S, P, O0),
-	header_object(O0, O).
+hdt_header(Hdt0, S, P, O) :-
+  hdt_blob(Hdt0, Hdt),
+  hdt_(Hdt, header, S, P, O0),
+  header_object(O0, O).
 
 header_object(O0, O) :-
-	string(O0), !,
-	header_untyped_object(O0, O).
+  string(O0), !,
+  header_untyped_object(O0, O).
 header_object(O, O).
 
 header_untyped_object(O0, O) :-
-	catch(xsd_number_string(N, O0),
-	      error(syntax_error(xsd_number), _),
-	      fail), !,
-	(   integer(N)
-	->  rdf_equal(O, N^^xsd:integer)
-	;   rdf_equal(O, N^^xsd:float)
-	).
+  catch(
+    xsd_number_string(N, O0),
+    error(syntax_error(xsd_number), _),
+    fail
+  ), !,
+  (   integer(N)
+  ->  rdf_equal(O, N^^xsd:integer)
+  ;   rdf_equal(O, N^^xsd:float)
+  ).
 header_untyped_object(O0, O) :-
-	catch(xsd_time_string(Term, Type, O0),
-	      error(_,_), fail), !,
-	O = Term^^Type.
+  catch(
+    xsd_time_string(Term, Type, O0),
+    error(_,_),
+    fail
+  ), !,
+  O = Term^^Type.
 header_untyped_object(S, O) :-
-	rdf_equal(O, S^^xsd:string).
+  rdf_equal(O, S^^xsd:string).
 
 
-%%	hdt_property(+HDT, +Property) is semidet.
-%%	hdt_property(+HDT, ?Property) is nondet.
+
+%! hdt_property(+Hdt, +Property:compound) is semidet.
+%! hdt_property(+Hdt, ?Property:compound) is nondet.
 %
-%	True of Property is a property of HTD.  Defined properties are
+%  True of Property is a property of HTD.  Defined properties are
 %
-%	  - mapping(-Mapping)
-%	  - max_id(-ID))
-%	  - max_object_id(-ID))
-%	  - max_predicate_id(-ID))
-%	  - max_subject_id(-ID))
-%	  - objects(-Count))
-%	  - predicates(-Count))
-%	  - shared(-Count))
-%	  - subjects(-Count))
-%	  - elements(-Count))
+%    * elements(-Count))
+%    * mapping(-Mapping)
+%    * max_id(-Id))
+%    * max_object_id(-Id))
+%    * max_predicate_id(-Id))
+%    * max_subject_id(-Id))
+%    * objects(-Count))
+%    * predicates(-Count))
+%    * shared(-Count))
+%    * subjects(-Count))
 
-hdt_property(HDT, Property) :-
-	hdt_property(Property),
-	hdt_property_(HDT, Property).
+hdt_property(Hdt0, Property) :-
+  hdt_blob(Hdt0, Hdt),
+  hdt_property(Property),
+  hdt_property_(Hdt, Property).
 
 hdt_property(mapping(_)).
 hdt_property(max_id(_)).
@@ -403,144 +504,151 @@ hdt_property(elements(_)).
 
 
 
-		 /*******************************
-		 *	     HELPERS		*
-		 *******************************/
 
-%%	hdt_search(+HDT, ?S, ?P, ?O)
+
+% HELPERS %
+
+%! hdt_blob(+Hdt0, -Hdt:blob) is det.
+
+hdt_blob(hdt(Hdt), Hdt) :- !.
+hdt_blob(graph(G), Hdt) :- !,
+  hdt_graph(Hdt, G).
+hdt_blob(Hdt0, Hdt) :-
+  (atom(Hdt0) ->  hdt_graph(Hdt, Hdt0) ; Hdt = Hdt0).
+  
+
+
+%! hdt_prefix(+Hdt, +Role:oneof([subject,predicate,object]), +Prefix:atom,
+%!            -Term) is det.
 %
-%	True if <S,P,O> is a triple in HDT.
-
-hdt_search(HDT, S, P, O) :-
-	pre_object(HDT, O, OHDT),
-	hdt_search(HDT, content, S, P, OHDT),
-post_object(O, OHDT).
-
-
-%%	hdt_suggestions(+HDT, +Base, +Role, +MaxResults, -Results:list) is det.
+% True when Results is a list of suggestions for Base in the triple
+% role Role. Some experimentation suggests it performs a prefix match
+% on the internal string representation. This implies that literals
+% are only found if the first character of Base is `"`.
 %
-%	True when Results is a  list  of   suggestions  for  Base in the
-%	triple role Role. Some experimentation   suggests  it performs a
-%	prefix match on the internal string representation. This implies
-%	that literals are only found if the   first character of Base is
-%	`"`.
+% @arg Role is one of `subject`, `predicate` or `object`.
 %
-%	@arg Base is a string or atom
-%	@arg Role is one of `subject`, `predicate` or `object`
+% @arg Prefix is a string or atom.
 
 
-%%	pre_object(+HDT, ?O, -OHDT) is det.
-%%	post_object(?O, +OHDT) is det.
+
+%! hdt_register_graph(+Hdt:blob, +G:atom) is det.
+
+hdt_register_graph_(Hdt, G) :-
+  must_be(atom, G),
+  with_mutex(hdt_graph_, (
+    (   hdt_graph_(Hdt, _)
+    ->  existence_error(hdt, Hdt)
+    ;   hdt_graph_(_, G)
+    ->  existence_error(graph, G)
+    ;   assert(hdt_graph_(Hdt, G))
+    )
+  )).
+
+
+
+%! post_object(?O, +Var) is det.
 %
-%	Pre/post object processing. The  HDT   library  itself is purely
-%	string based.
+% Pre/post object processing. The HDT library itself is purely string
+% based.
 
-pre_object(_HDT, O, OHDT) :-
-	atom(O), \+ boolean(O), !,
-	OHDT = O.
-pre_object(_HDT, O, OHDT) :-
-	ground(O), !,
-	rdf_lexical_form(O, Lexical),
-	canonical_string(Lexical, OHDT).
-pre_object(HDT, O, OHDT) :-
-	nonvar(O),
-	O = String@Lang,
-	ground(String),
-	atomics_to_string(["\"", String, "\"@"], Prefix),
-	hdt_suggestions(HDT, Prefix, object, 1000, List),
-	length(List, Found),
-	Found < 1000, !,		% we got them all
-	member(_@Lang, List),
-	canonical_string(String@Lang, OHDT).
+post_object(O, _Hdt) :-
+  ground(O), !.
+post_object(O, IRI) :-
+  atom(IRI), !,
+  O = IRI.
+post_object(O, Hdt) :-
+  rdf_canonical_literal(Hdt, O).
+
+
+
+%! pre_object(+Hdt:blob, ?O, -Var) is det.
+
+pre_object(_, O, OHdt) :-
+  atom(O), \+ boolean(O), !,
+  OHdt = O.
+pre_object(_, O, OHdt) :-
+  ground(O), !,
+  rdf_lexical_form(O, Lexical),
+  canonical_string(Lexical, OHdt).
+pre_object(Hdt, O, OHdt) :-
+  nonvar(O),
+  O = Lex@Lang,
+  ground(Lex),
+  atomics_to_string(["\"", Lex, "\"@"], Prefix),
+  hdt_suggestions(Hdt, Prefix, object, 1000, List),
+  length(List, Found),
+  Found < 1000, !,    % we got them all
+  member(_@Lang, List),
+  canonical_string(Lex@Lang, OHdt).
 pre_object(_, _, _).
 
-canonical_string(Lexical^^Type, HDT) :-
-	atomics_to_string(["\"", Lexical, "\"^^<", Type, ">"], HDT).
-canonical_string(Lexical@Lang, HDT) :-
-	atomics_to_string(["\"", Lexical, "\"@", Lang], HDT).
+canonical_string(Lexical^^Type, Hdt) :-
+  atomics_to_string(["\"", Lexical, "\"^^<", Type, ">"], Hdt).
+canonical_string(Lexical@Lang, Hdt) :-
+  atomics_to_string(["\"", Lexical, "\"@", Lang], Hdt).
 
 boolean(false).
 boolean(true).
 
-%!	post_object(?PrologObj, ?HDTObjectString) is semidet.
-
-post_object(O, _HDT) :-
-	ground(O), !.
-post_object(O, IRI) :-
-	atom(IRI), !,
-	O = IRI.
-post_object(O, HDT) :-
-	rdf_canonical_literal(HDT, O).
 
 
-%%	hdt_subject_id(+HDT, ?S, ?Id) is semidet.
-%%	hdt_predicate_id(+HDT, ?P, ?Id) is semidet.
-%%	hdt_object_id(+HDT, ?O, ?Id) is semidet.
+%! hdt_post_triple(+Hdt:blob, ?Triple:compound, +TripleId:compound) is det.
 %
-%	True if String is mapped to Id in   the given role. Fails if the
-%	requested String or Id is not known for the given role in HDT.
-
-hdt_subject_id(HDT, String, Id) :-
-	hdt_string_id(HDT, subject, String, Id).
-hdt_predicate_id(HDT, String, Id) :-
-	hdt_string_id(HDT, predicate, String, Id).
-hdt_object_id(HDT, O, Id) :-
-	pre_object(HDT, O, String),
-	hdt_string_id(HDT, object, String, Id),
-	post_object(O, String).
-
-%%	hdt_pre_triple(+HDT,  ?TripleIn, -TripleID) is det.
-%%	hdt_post_triple(+HDT, ?TripleIn, +TripleID) is det.
+% Perform term->id and id->term translation for triples.  The
+% predicate hdt_search/4 could be defined as:
 %
-%	Perform term->id and  id->term  translation   for  triples.  The
-%	predicate hdt_search/4 could be defined as:
+%    ==
+%    hdt_search(Hdt, S, P, O) :-
+%        Triple   = t(S,P,O),
+%        TripleId = t(SId,PId,OId),
+%        hdt_pre_triple(Hdt, Triple, TripleId),
+%        hdt_search_id(Hdt,SId,PId,OId),
+%        hdt_post_triple(Hdt, Triple, TripleId).
+%    ==
 %
-%	  ==
-%	  hdt_search(HDT, S, P, O) :-
-%	      Triple   = t(S,P,O),
-%	      TripleID = t(SID,PID,OID),
-%	      hdt_pre_triple(HDT, Triple, TripleID),
-%	      hdt_search_id(HDT,SID,PID,OID),
-%	      hdt_post_triple(HDT, Triple, TripleID).
-%	  ==
-%
-%	@see hdt_search_id/4.
+%  @see hdt_search_id/4.
 
-hdt_pre_triple(HDT, t(S0,P0,O0), t(S,P,O)) :-
-	pre_iri_id(HDT, subject, S0, S),
-	pre_iri_id(HDT, predicate, P0, P),
-	(   ground(O0)
-	->  pre_object(HDT, O0, String),
-	    hdt_string_id(HDT, object, String, O)
-	;   true
-	).
+hdt_post_triple(Hdt, t(S,P,O), t(SId,PId,OId)) :-
+  post_iri_id(Hdt, subject, S, SId),
+  post_iri_id(Hdt, predicate, P, PId),
+  (   ground(O)
+  ->  true
+  ;   hdt_term_id_(Hdt, object, Var, OId),
+      post_object(O, Var)
+  ).
 
-hdt_post_triple(HDT, t(S0,P0,O0), t(S,P,O)) :-
-	post_iri_id(HDT, subject, S0, S),
-	post_iri_id(HDT, predicate, P0, P),
-	(   ground(O0)
-	->  true
-	;   hdt_string_id(HDT, object, String, O),
-	    post_object(O0, String)
-	).
-
-pre_iri_id(_, _, In, _) :-
-	var(In), !.
-pre_iri_id(HDT, Role, In, Id) :-
-	hdt_string_id(HDT, Role, In, Id).
-
-post_iri_id(_, _, S0, _) :-
-	atom(S0), !.
-post_iri_id(HDT, Role, In, Id) :-
-	hdt_string_id(HDT, Role, In, Id).
+post_iri_id(_, _, S, _) :-
+  atom(S), !.
+post_iri_id(Hdt, Role, Term, Id) :-
+  hdt_term_id_(Hdt, Role, Term, Id).
 
 
 
-		 /*******************************
-		 *	      MESSAGES		*
-		 *******************************/
+%! hdt_pre_triple(+Hdt:blob,  ?Triple:compound, -TripleId:compound) is det.
 
-:- multifile prolog:error_message//1.
+hdt_pre_triple(Hdt, t(S,P,O), t(SId,PId,OId)) :-
+  pre_iri_id(Hdt, subject, S, SId),
+  pre_iri_id(Hdt, predicate, P, PId),
+  (   ground(O)
+  ->  pre_object(Hdt, O, Var),
+      hdt_term_id_(Hdt, object, Var, OId)
+  ;   true
+  ).
+
+pre_iri_id(_, _, Term, _) :-
+  var(Term), !.
+pre_iri_id(Hdt, Role, Term, Id) :-
+  hdt_term_id_(Hdt, Role, Term, Id).
+
+
+
+
+
+% MESSAGES %
+
+:- multifile
+    prolog:error_message//1.
 
 prolog:error_message(hdt_error(Message)) -->
-	[ 'HDT: ~w'-[Message] ].
+  [ "HDT: ~w"-[Message] ].
