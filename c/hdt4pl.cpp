@@ -235,7 +235,7 @@ PREDICATE(hdt_open_, 3)
       return PL_type_error("option", opt);
   }
 
-  if ( !PL_get_file_name(A2, &name, PL_FILE_EXIST) )
+  if ( !PL_get_file_name(A1, &name, PL_FILE_EXIST) )
     return FALSE;
 
   try
@@ -243,12 +243,12 @@ PREDICATE(hdt_open_, 3)
     { if ( indexed )
 	hdt = HDTManager::mapIndexedHDT(name);
       else
-	hdt = HDTManager::mapHDT(A2);
+	hdt = HDTManager::mapHDT(A1);
     } else if ( access == ATOM_load )
     { if ( indexed )
 	hdt = HDTManager::loadIndexedHDT(name);
       else
-	hdt = HDTManager::loadHDT(A2);
+	hdt = HDTManager::loadHDT(A1);
     } else
     { PlTerm ex;
 
@@ -261,7 +261,7 @@ PREDICATE(hdt_open_, 3)
   memset(symb, 0, sizeof(*symb));
   symb->hdt = hdt;
 
-  return PL_unify_blob(A1, symb, sizeof(*symb), &hdt_blob);
+  return PL_unify_blob(A2, symb, sizeof(*symb), &hdt_blob);
 }
 
 
@@ -428,7 +428,7 @@ PREDICATE_NONDET(hdt_, 5)
 /** hdt_prefix_(+HDT, +Role, +Prefix, -Term)
 */
 
-PREDICATE_NONDET(hdt_suggestions, 4)
+PREDICATE_NONDET(hdt_prefix_, 4)
 { IteratorUCharString *it;
 
   switch(PL_foreign_control(handle))
@@ -626,10 +626,10 @@ get_triple_role(term_t t, TripleComponentRole *role)
 }
 
 
-/** hdt_term_id_(+HDT, +Role, ?String, ?Id)
+/** hdt_dict_(+HDT, +Role, ?String, ?Id)
 */
 
-PREDICATE(hdt_term_id_, 4)
+PREDICATE(hdt_dict_, 4)
 { hdt_wrapper *symb;
   TripleComponentRole roleid;
   size_t len; char *s;
