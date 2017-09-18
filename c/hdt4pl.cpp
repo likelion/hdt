@@ -425,40 +425,50 @@ PREDICATE_NONDET(hdt_, 5)
 }
 
 
-/** hdt_prefix_(+HDT, +From, +Role, +Prefix, -Term)
+/** hdt_prefix_(+HDT, +Role, +Prefix, -Term)
 */
 
-PREDICATE(hdt_prefix_, 5)
-{ hdt_wrapper *symb;
-  TripleComponentRole role;
-  char *from;
-  size_t len;
-  int max_count;
-  std::vector<string> out;
+PREDICATE_NONDET(hdt_suggestions, 4)
+{ IteratorUCharString *it;
 
-  if ( !get_hdt(A1, &symb) ||
-       !PL_get_nchars(A2, &len, &from,
-		      CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8) ||
-       !get_triple_role(A3, &role) ||
-       !PL_get_integer_ex(A4, &max_count) )
-    return FALSE;
+  switch(PL_foreign_control(handle))
+  { case PL_FIRST_CALL:
+    { hdt_wrapper *symb;
+      TripleComponentRole role;
+      char *prefix;
+      size_t len;
 
-  try
-  { symb->hdt->getDictionary()->getSuggestions(from, role, out, max_count);
-  } CATCH_HDT;
+      if ( !get_hdt(A1, &symb) ||
+           !get_triple_role(A2, &role) ||
+           !PL_get_nchars(A3, &len, &prefix,
+                          CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8) )
+        return FALSE;
 
-  term_t tail = PL_copy_term_ref(A5);
-  term_t head = PL_new_term_ref();
-  for(std::vector<string>::iterator it = out.begin();
-      it != out.end();
-      ++it)
-  { if ( !PL_unify_list(tail,head,tail) ||
-	 !(role == OBJECT ? unify_object(head, it->c_str())
-			  : unify_string(head, it->c_str())) )
+      try
+      { it = symb->hdt->getDictionary()->getSuggestions(prefix, role);
+      } CATCH_HDT;
+
+      goto next;
+    }
+    case PL_REDO:
+      it = (IteratorUCharString*)PL_foreign_context_address(handle);
+    next:
+      if ( it->hasNext() )
+      { unsigned char *s = it->next();
+	int rc;
+
+	rc = PL_unify_chars(A4, PL_ATOM|REP_UTF8, (size_t)-1, (const char*)s);
+	it->freeStr(s);
+	if ( rc )
+	  PL_retry_address((void*)it);
+      }
+      delete it;
       return FALSE;
+    case PL_PRUNED:
+      it = (IteratorUCharString*)PL_foreign_context_address(handle);
+      delete it;
+      return TRUE;
   }
-
-  return PL_unify_nil(tail);
 }
 
 
