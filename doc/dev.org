@@ -30,22 +30,22 @@ enable several use cases that are currently blocked in MaestroGraph.
 Old API:
 
 #+BEGIN_SRC
-hdt_open/2,		% -HDT, +Path
-hdt_open/3,		% -HDT, +Path, +Options
-hdt_close/1,		% +HDT
-hdt_create_from_file/3, % +HDTFile, +RDFFile, +Options
+hdt_open/2,		% -Hdt, +Path
+hdt_open/3,		% -Hdt, +Path, +Options
+hdt_close/1,		% +Hdt
+hdt_create_from_file/3, % +HdtFile, +RdfFile, +Options
 #+END_SRC
 
 New API:
 
 #+BEGIN_SRC
-hdt_create/1,	% +RDFFile
-hdt_create/2,	% +RDFFile, +HDTFile
-hdt_create/3,	% +RDFFile, +HDTFile, +Options
-
-hdt_open/2,	% +File, -HDT
-hdt_open/3,	% +File, -HDT, +Options
-hdt_close/1,	% +HDT
+hdt_create/1,	% +RdfFile
+hdt_create/2,	% +RdfFile, +HdtFile
+hdt_create/3,	% +RdfFile, +HdtFile, +Options
+hdt_graph/2,    % ?Hdt, ?G
+hdt_open/2,	% +File, -Hdt
+hdt_open/3,	% +File, -Hdt, +Options
+hdt_close/1,	% +G
 #+END_SRC
 
 Changes:
@@ -54,7 +54,7 @@ Changes:
      file (arg1) to an HDT file (arg2), i.o. the other way around.
   3. Added wrapper predicate ~hdt_create/2~ that uses the default
      options, and wrapper predicate ~hdt_create/1~ that used the base
-     name of the ~RDFFile~ for the ~HDTFile~.
+     name of the ~RdfFile~ for the ~HdtFile~.
   4. Changed the argument order for opening an HDT file: from an HDT
      file (arg1) to an HDT handle (arg2), i.o. the other way around.
 
@@ -63,15 +63,16 @@ Changes:
 Old API:
 
 #+BEGIN_SRC
-hdt_subject_id/3,	% +HDT, ?Subject, ?Id
-hdt_predicate_id/3,	% +HDT, ?Predicate, ?Id
-hdt_object_id/3,	% +HDT, ?Object, ?Id
+hdt_subject_id/3,	% +Hdt, ?S, ?Id
+hdt_predicate_id/3,	% +Hdt, ?P, ?Id
+hdt_object_id/3,	% +Hdt, ?O, ?Id
 #+END_SRC
 
 New API:
 
 #+BEGIN_SRC
-hdt_term_id/4,	% +HDT, +Role, ?Term, ?ID
+hdt_dict/3, % +Role, ?Term, ?Id
+hdt_dict/4, % +Role, ?Term, ?Id, ?G
 #+END_SRC
 
 Changes:
@@ -83,22 +84,22 @@ Changes:
 Old API:
 
 #+BEGIN_SRC
-hdt_search/4,		% +HDT, ?S,?P,?O
-hdt_search_cost/5,	% +HDT, ?S,?P,?O, -Cost
-hdt_search_id/4,	% +HDT, ?S,?P,?O
+hdt_search/4,		% +Hdt, ?S, ?P, ?O
+hdt_search_cost/5,	% +Hdt, ?S, ?P, ?O, -Cost
+hdt_search_id/4,	% +Hdt, ?S, ?P, ?O
 #+END_SRC
 
 New API:
 
 #+BEGIN_SRC
-hdt/4,		% +HDT, ?S,?P,?O
-hdt_id/4,	% +HDT, ?SID,?PID,?OID
+hdt/4,		% +Hdt, ?S, ?P, ?O
+hdt_id/4,	% +Hdt, ?SID,?PID,?OID
 
-hdt_count/5,	% +HDT, ?S,?P,?O, -Count
-hdt_count_id/5,	% +HDT, ?SID,?PID,?OID, -Count
+hdt_count/5,	% +Hdt, ?S,?P,?O, -Count
+hdt_count_id/5,	% +Hdt, ?SID,?PID,?OID, -Count
 
-hdt_rnd/4,	% +HDT, ?S,?P,?O
-hdt_rnd_id/4,	% +HDT, ?SID,?PID,?OID
+hdt_rnd/4,	% +Hdt, ?S,?P,?O
+hdt_rnd_id/4,	% +Hdt, ?SID,?PID,?OID
 #+END_SRC
 
 Changes:
@@ -116,22 +117,22 @@ Changes:
 Old API:
 
 #+BEGIN_SRC
-hdt_subject/2,		% +HDT, -Subject
-hdt_predicate/2,	% +HDT, -Predicate
-hdt_shared/2,		% +HDT, -Shared
-hdt_object/2,		% +HDT, -Object
+hdt_subject/2,		% +Hdt, -Subject
+hdt_predicate/2,	% +Hdt, -Predicate
+hdt_shared/2,		% +Hdt, -Shared
+hdt_object/2,		% +Hdt, -Object
 #+END_SRC
 
 New API:
 
 #+BEGIN_SRC
-hdt_term/3,		% +HDT, +Role, -Term
-hdt_term_id/3,		% +HDT, +Role, -ID
+hdt_term/3,		% +Hdt, +Role, -Term
+hdt_term_id/3,		% +Hdt, +Role, -ID
 
-hdt_term_count/3,	% +HDT, +Role, -Count
+hdt_term_count/3,	% +Hdt, +Role, -Count
 
-hdt_term_id_rnd/3,	% +HDT, +Role, -ID
-hdt_term_rnd/3,		% +HDT, +Role, -Term
+hdt_term_id_rnd/3,	% +Hdt, +Role, -ID
+hdt_term_rnd/3,		% +Hdt, +Role, -Term
 #+END_SRC
 
 Changes:
@@ -155,26 +156,26 @@ both predicates and nodes have two IDs.
 Old API:
 
 #+BEGIN_SRC
-hdt_suggestions/5, % +HDT, +Base, +Role, +MaxCount, -List
+hdt_suggestions/5, % +Hdt, +Base, +Role, +MaxCount, -List
 #+END_SRC
 
 New API:
 
 #+BEGIN_SRC
-hdt_term/4,		% +HDT, +Role, +Prefix, -Term
-hdt_term_id/4,		% +HDT, +Role, +Prefix, -ID
+hdt_term/4,		% +Hdt, +Role, +Prefix, -Term
+hdt_term_id/4,		% +Hdt, +Role, +Prefix, -ID
 
-hdt_term_count/4,	% +HDT, +Role, +Prefix, -Count
+hdt_term_count/4,	% +Hdt, +Role, +Prefix, -Count
 
-hdt_term_rnd/4,		% +HDT, +Role, +Prefix, -Term
-hdt_term_rnd_id/4,	% +HDT, +Role, +Prefix, -ID
+hdt_term_rnd/4,		% +Hdt, +Role, +Prefix, -Term
+hdt_term_rnd_id/4,	% +Hdt, +Role, +Prefix, -ID
 #+END_SRC
 
 Changes:
   1. HDT suggestions are now an extension of the term predicates (see
      previous section).
 
-** TODO A mapping between HDT files and named graphs
+** DONE A mapping between HDT files and named graphs
 
 Jan already has an API + implementation for this.
 
@@ -183,8 +184,8 @@ Jan already has an API + implementation for this.
 Old API:
 
 #+BEGIN_SRC
-hdt_header/4,	% +HDT, ?S,?P,?O
-hdt_property/2,	% +HTD, -Property
+hdt_header/4,	% +Hdt, ?S, ?P, ?O
+hdt_property/2,	% +Hdt, -Property
 #+END_SRC
 
 These will not be changed in the new API.
@@ -196,8 +197,9 @@ These will not be changed in the new API.
 ** TODO how to guarantee uniqueness for IRI enumeration?
 ** TODO store the offsets (S, O, and SO) of blank nodes in the header
 * TO-DO list for ~hdt4swipl~
-** TODO test random function
-** TODO random function with IDs
+** DONE test random function
+** DONE random function with IDs
+** TODO ~hdt_header_add(+S, +P, +O, +G)~
 * TO-DO list for ~hdt.pl~
 ** TODO ~hdt_open/3~
 swap argument 1 and 2
