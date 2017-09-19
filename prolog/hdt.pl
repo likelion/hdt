@@ -233,14 +233,14 @@ hdt_open(File) :-
   hdt_open(File, []).
 
 
-hdt_open(File, Options1) :-
-  select_option(graph(G), Options1, Options2, _VAR),
-  hdt_open_(File, Hdt, Options2),
-  (   ground(G)
-  ->  hdt_register_graph_(Hdt, G)
-  ;   Options2 = Options1
+hdt_open(File, Options) :-
+  (   option(graph(G), Options)
+  ->  true
+  ;   uri_file_name(G, File)
   ),
-  ignore(option(handle(Hdt), Options1)).
+  hdt_open_(File, Hdt, Options),
+  hdt_register_graph_(Hdt, G),
+  ignore(option(handle(Hdt), Options)).
 
 
 
