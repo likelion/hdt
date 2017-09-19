@@ -39,8 +39,8 @@
      hdt_create/2,        % +RdfFile, +HdtFile
      hdt_create/3,        % +RdfFile, +HdtFile, +Options
      hdt_graph/2,         % ?Hdt, ?G
-     hdt_open/2,          % +File, -Hdt
-     hdt_open/3,          % +File, -Hdt, +Options
+     hdt_open/1,          % +File
+     hdt_open/2,          % +File, +Options
      hdt_close/1,         % +G
 
    % TERM ↔ ID
@@ -193,8 +193,8 @@ hdt_graph(Hdt, G) :-
 
 
 
-%! hdt_open(+File:atom, -Hdt:blob) is det.
-%! hdt_open(+File:atom, -Hdt:blob, +Options:list(compound)) is det.
+%! hdt_open(+File:atom) is det.
+%! hdt_open(+File:atom, +Options:list(compound)) is det.
 %
 % Open an existing HDT file and unify Hdt with a handle to it.  The
 % handle is an opaque symbol that is subject to (atom) garbage
@@ -213,6 +213,12 @@ hdt_graph(Hdt, G) :-
 %   alias acts as a name for the graph, or set of triples, that is
 %   contained in the HDT file.
 %
+%   By default this is the URI denoting File.
+%
+%   * handle(-blob)
+%
+%   Return a direct handle to the opened HDT file.
+%
 %   * indexed(+boolean)
 %
 %   Whether or not an index file is created.  Default is `true`.
@@ -223,17 +229,18 @@ hdt_graph(Hdt, G) :-
 %   The index is maintained in a file with extension `.index` in the
 %   same directory as the HDT file.
 
-hdt_open(File, Hdt) :-
-  hdt_open(Hdt, File, []).
+hdt_open(File) :-
+  hdt_open(File, []).
 
 
-hdt_open(File, Hdt, Options1) :-
+hdt_open(File, Options1) :-
   select_option(graph(G), Options1, Options2, _VAR),
   hdt_open_(File, Hdt, Options2),
   (   ground(G)
   ->  hdt_register_graph_(Hdt, G)
   ;   Options2 = Options1
-  ).
+  ),
+  ignore(option(handle(Hdt), Options1)).
 
 
 
@@ -538,6 +545,8 @@ hdt_prefix(Role, Prefix, Term, Hdt0) :-
 
 
 %! hdt_prefix_id(+Role, +Prefix:atom, ?Id:nonneg) is nondet.
+
+
 
 
 %! hdt_prefix_id(+Role, +Prefix:atom, ?Id:nonneg, ?G) is nondet.
