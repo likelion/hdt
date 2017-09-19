@@ -38,9 +38,13 @@
 #include <iostream>
 #include <HDTManager.hpp>
 #include <assert.h>
+#include <ctime>
+#include <random>
 
 using namespace std;
 using namespace hdt;
+
+static mt19937 randomGenerator(time(0));
 
 static void	deleteHDT(HDT *hdt);
 static int	get_triple_role(term_t t, TripleComponentRole *role);
@@ -631,11 +635,11 @@ get_triple_role(term_t t, TripleComponentRole *role)
 
 PREDICATE(hdt_dict_, 4)
 { hdt_wrapper *symb;
-  TripleComponentRole roleid;
+  TripleComponentRole role;
   size_t len; char *s;
 
   if ( !get_hdt(A1, &symb) ||
-       !get_triple_role(A2, &roleid) )
+       !get_triple_role(A2, &role) )
     return FALSE;
 
   try
@@ -645,13 +649,13 @@ PREDICATE(hdt_dict_, 4)
     { if ( PL_get_nchars(A3, &len, &s,
 			 CVT_ATOM|CVT_STRING|REP_UTF8|CVT_EXCEPTION) )
       { std::string str(s);
-	size_t id = dict->stringToId(str, roleid);
+	size_t id = dict->stringToId(str, role);
 
 	if ( id )
 	  return (A4 = (long)id);	/* signed/unsigned mismatch */
       }
     } else
-    { std::string str = dict->idToString((size_t)(long)A4, roleid);
+    { std::string str = dict->idToString((size_t)(long)A4, role);
 
       if ( !str.empty() )
 	return (A3 = str.c_str());
@@ -781,25 +785,25 @@ PREDICATE(hdt_rnd_id_, 4)
   hdt_wrapper *symb;
   unsigned int flags=0;
   size_t s, p, o;
-  searchid_it *ctx;
   if ( !get_hdt(A1, &symb) ||
-       !get_search_id(A2, &s, S_S, &ctx->flags) ||
-       !get_search_id(A3, &p, S_P, &ctx->flags) ||
-       !get_search_id(A4, &o, S_O, &ctx->flags) )
+       !get_search_id(A2, &s, S_S, &flags) ||
+       !get_search_id(A3, &p, S_P, &flags) ||
+       !get_search_id(A4, &o, S_O, &flags) )
     return FALSE;
-
   try {
     TripleID pattern(s, p, o);
     IteratorTripleID *it = symb->hdt->getTriples()->search(pattern);
-    size_t max = it->estimatedNumResults();
-    unsigned int index = 1 + (int)(max * rand() / (RAND_MAX + 1.0));
+    size_t max = it->estimatedNumResults() - 1;
+    uniform_int_distribution<unsigned int> distribution(0, max);
+    unsigned int index = distribution(randomGenerator);
+    Sprintf("%d from 0..%d\n", index, max);
     it->goTo(index);
     if (it->hasNext()) {
       TripleID *t = it->next();
       bool rc =
-        ( (!(ctx->flags&S_S) || PL_unify_integer(A2, t->getSubject())) &&
-          (!(ctx->flags&S_P) || PL_unify_integer(A3, t->getPredicate())) &&
-          (!(ctx->flags&S_O) || PL_unify_integer(A4, t->getObject())) );
+        ( (!(flags&S_S) || PL_unify_integer(A2, t->getSubject())) &&
+          (!(flags&S_P) || PL_unify_integer(A3, t->getPredicate())) &&
+          (!(flags&S_O) || PL_unify_integer(A4, t->getObject())) );
       delete it;
       return rc;
     }
