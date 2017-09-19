@@ -380,7 +380,7 @@ hdt_rnd(S, P, O, Hdt0) :-
   Triple = t(S,P,O),
   TripleId = t(SId,PId,OId),
   hdt_pre_triple(Hdt, Triple, TripleId),
-  hdt_rnd_id(Hdt, SId, PId, OId),
+  hdt_rnd_id(SId, PId, OId, Hdt),
   hdt_post_triple(Hdt, Triple, TripleId).
 
 
@@ -391,9 +391,9 @@ hdt_rnd_id(SId, PId, OId) :-
   hdt_rnd_id(SId, PId, OId, _).
 
 
-%! hdt_rnd_id(+Hdt, ?SId, ?PId, ?OId) is nondet.
+%! hdt_rnd_id(?SId, ?PId, ?OId, G) is nondet.
 
-hdt_rnd_id(Hdt0, SId, PId, OId) :-
+hdt_rnd_id(SId, PId, OId, Hdt0) :-
   hdt_blob(Hdt0, Hdt),
   hdt_rnd_id_(Hdt, SId, PId, OId).
 
@@ -406,8 +406,8 @@ hdt_rnd_id(Hdt0, SId, PId, OId) :-
 %! hdt_term(+Role, +Term) is semidet.
 %! hdt_term(+Role, -Term) is nondet.
 
-hdt_term(name, Name) :-
-  hdt_term(name, Name, _).
+hdt_term(Role, Name) :-
+  hdt_term(Role, Name, _).
 
 
 %! hdt_term(+Role, +Term, ?G) is semidet.
@@ -780,8 +780,8 @@ hdt_post_triple(Hdt, t(S,P,O), t(SId,PId,OId)) :-
   post_iri_id(Hdt, predicate, P, PId),
   (   ground(O)
   ->  true
-  ;   hdt_dict_(Hdt, object, Var, OId),
-      post_object(O, Var)
+  ;   hdt_dict_(Hdt, object, String, OId),
+      post_object(O, String)
   ).
 
 post_iri_id(_, _, S, _) :-
