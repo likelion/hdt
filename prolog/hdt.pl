@@ -36,11 +36,11 @@
    hdt,
    [
    % HDT FILES
-     hdt_create/2,        % +RdfFile, +HdtFile
-     hdt_create/3,        % +RdfFile, +HdtFile, +Options
+     hdt_create/1,        % +RdfFile
+     hdt_create/2,        % +RdfFile, +Options
      hdt_graph/2,         % ?Hdt, ?G
-     hdt_open/1,          % +File
-     hdt_open/2,          % +File, +Options
+     hdt_open/1,          % +HdtFile
+     hdt_open/2,          % +HdtFile, +Options
      hdt_close/1,         % +G
 
    % TERM ↔ ID
@@ -102,10 +102,12 @@
 */
 
 :- use_module(library(error)).
+:- use_module(library(filesex)).
 :- use_module(library(lists)).
 :- use_module(library(option)).
 :- use_module(library(semweb/rdf11)).
 :- use_module(library(sgml)).
+:- use_module(library(uri)).
 
 :- use_foreign_library(foreign(hdt4pl)).
 
@@ -154,23 +156,37 @@ hdt_close(G) :- !,
 
 
 
-%! hdt_create(+RdfFile:atom, +HdtFile:atom) is det.
-%! hdt_create(+RdfFile:atom, +HdtFile:atom, +Options:list(compound)) is det.
+%! hdt_create(+RdfFile:atom) is det.
+%! hdt_create(+RdfFile:atom, +Options:list(compound)) is det.
 %
 % Create an HDT file from an uncompressed N-Triples file.
 %
 % The following Options are supported:
 %
 %    * base_uri(+URI:atom)
+%
 %    URI is used for generating the header properties (see
 %    http_header/4.
+%
+%    * hdt_file(?atom)
+%
+%    Either set the name of the HDT file, or retrieve the
+%    automatically created name of the HDT file.
 
-hdt_create(RdfFile, HdtFile) :-
-  hdt_create(RdfFile, HdtFile, []).
+hdt_create(RdfFile) :-
+  hdt_create(RdfFile, []).
 
 
-hdt_create(RdfFile, HdtFile, Options) :-
-  hdt_create_(HdtFile, RdfFile, Options).
+hdt_create(RdfFile, Options1) :-
+  (   select_option(hdt_file(HdtFile), Options1, Options2)
+  ->  true
+  ;   directory_file_path(Dir, RdfLocal, RdfFile),
+      atomic_list_concat([Base|_], ., RdfLocal),
+      file_name_extension(Base, hdt, HdtLocal),
+      directory_file_path(Dir, HdtLocal, HdtFile),
+      Options2 = Options1
+  ),
+  hdt_create_(HdtFile, RdfFile, Options2).
 
 
 
@@ -193,8 +209,8 @@ hdt_graph(Hdt, G) :-
 
 
 
-%! hdt_open(+File:atom) is det.
-%! hdt_open(+File:atom, +Options:list(compound)) is det.
+%! hdt_open(+HdtFile:atom) is det.
+%! hdt_open(+HdtFile:atom, +Options:list(compound)) is det.
 %
 % Open an existing HDT file and unify Hdt with a handle to it.  The
 % handle is an opaque symbol that is subject to (atom) garbage
@@ -213,7 +229,7 @@ hdt_graph(Hdt, G) :-
 %   alias acts as a name for the graph, or set of triples, that is
 %   contained in the HDT file.
 %
-%   By default this is the URI denoting File.
+%   By default this is the URI denoting HdtFile.
 %
 %   * handle(-blob)
 %
@@ -229,16 +245,16 @@ hdt_graph(Hdt, G) :-
 %   The index is maintained in a file with extension `.index` in the
 %   same directory as the HDT file.
 
-hdt_open(File) :-
-  hdt_open(File, []).
+hdt_open(HdtFile) :-
+  hdt_open(HdtFile, []).
 
 
-hdt_open(File, Options) :-
+hdt_open(HdtFile, Options) :-
   (   option(graph(G), Options)
   ->  true
-  ;   uri_file_name(G, File)
+  ;   uri_file_name(G, HdtFile)
   ),
-  hdt_open_(File, Hdt, Options),
+  hdt_open_(HdtFile, Hdt, Options),
   hdt_register_graph_(Hdt, G),
   ignore(option(handle(Hdt), Options)).
 
