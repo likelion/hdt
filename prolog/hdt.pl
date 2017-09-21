@@ -330,8 +330,7 @@ hdt_count(S, P, O, Count) :-
 hdt_count(S, P, O, Count, Hdt0) :-
   hdt_blob(Hdt0, Hdt),
   pre_object(Hdt, O, Atom),
-  hdt_count_(Hdt, S, P, Atom, Count),
-  post_object(Hdt, O, Atom).
+  hdt_count_(Hdt, S, P, Atom, Count).
 
 
 
@@ -380,7 +379,7 @@ hdt_rnd(S, P, O, Hdt0) :-
   hdt_blob(Hdt0, Hdt),
   pre_object(Hdt, O, Atom),
   hdt_rnd_(Hdt, S, P, Atom),
-  post_object(Hdt, O, Atom).
+  post_object(O, Atom).
 
 
 
@@ -452,14 +451,14 @@ hdt_term_blob(Hdt, node, Node) :-
 % object
 hdt_term_blob(Hdt, object, O) :-
   (   var(O)
-  ->  (   hdt_term_(Hdt, shared, O),
+  ->  (   hdt_term_(Hdt, shared, O)
       ;   pre_object(Hdt, O, Atom),
           hdt_term_(Hdt, object, Atom),
           post_object(O, Atom)
       )
   ;   pre_object(Hdt, O, Atom),
       hdt_(Hdt, content, _, _, Atom),
-      post_object(Hdt, O, Atom)
+      post_object(O, Atom)
   ->  true
   ).
 % predicate
@@ -745,7 +744,7 @@ post_literal(Lit) -->
 % entered partially.  Specifically, it is possible to only supply
 % their lexical form, and match their language tag or datatype IRI.
 
-pre_object(_, Var, Var) :-
+pre_object(_, Var, _) :-
   var(Var), !.
 pre_object(Hdt, Lex@LTag, Atom) :- !,
   must_be(string, Lex),
