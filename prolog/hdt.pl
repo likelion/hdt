@@ -95,6 +95,7 @@
 @version 2017/09
 */
 
+:- use_module(library(dcg/basics)).
 :- use_module(library(error)).
 :- use_module(library(filesex)).
 :- use_module(library(lists)).
@@ -258,14 +259,14 @@ hdt_open(HdtFile, Options) :-
   ignore(option(graph(G), Options)),
   (var(G) -> uri_file_name(G, HdtFile) ; true),
   hdt_open_(HdtFile, Hdt, Options),
-  hdt_register_graph_(Hdt, G),
+  register_graph_(Hdt, G),
   ignore(option(handle(Hdt), Options)).
 
 
 
 
 
-% TERM ↔ ID %
+% DICTIONARY TRANSLATIONS: TERM ↔ ID %
 
 %! hdt_dict(+Role, +Term, +Id) is semidet.
 %! hdt_dict(+Role, +Term, -Id) is det.
@@ -284,9 +285,9 @@ hdt_dict(Role, Term, Id) :-
 hdt_dict(Role, Term, Id, Hdt0) :- !,
   hdt_blob(Hdt0, Hdt),
   (   Role == object
-  ->  pre_object(Hdt, Term, String),
-      hdt_dict_(Hdt, object, String, Id),
-      post_object(Term, String)
+  ->  pre_object(Hdt, Term, Atom),
+      hdt_dict_(Hdt, object, Atom, Id),
+      post_object(Term, Atom)
   ;   hdt_dict_(Hdt, Role, Term, Id)
   ).
 
@@ -309,9 +310,9 @@ hdt(S, P, O) :-
 hdt(S, P, O, Hdt0) :-
   hdt_blob(Hdt0, Hdt),
   (var(S) -> true ; \+ rdf_is_literal(S)),
-  pre_object(Hdt, O, O0),
-  hdt_(Hdt, content, S, P, O0),
-  post_object(O, O0).
+  pre_object(Hdt, O, Atom),
+  hdt_(Hdt, content, S, P, Atom),
+  post_object(O, Atom).
 
 
 
@@ -330,11 +331,7 @@ hdt_count(S, P, O, Count) :-
 
 hdt_count(S, P, O, Count, Hdt0) :-
   hdt_blob(Hdt0, Hdt),
-  Triple = t(S,P,O),
-  TripleId = t(SId,PId,OId),
-  hdt_pre_triple(Hdt, Triple, TripleId),
-  hdt_count_id_(Hdt, SId, PId, OId, Count), !.
-hdt_count(_,_,_, 0, _).
+  hdt_count_(Hdt, S, P, O, Count).
 
 
 
@@ -383,9 +380,9 @@ hdt_rnd(S, P, O, Hdt0) :-
   hdt_blob(Hdt0, Hdt),
   Triple = t(S,P,O),
   TripleId = t(SId,PId,OId),
-  hdt_pre_triple(Hdt, Triple, TripleId),
+  pre_triple(Hdt, Triple, TripleId),
   hdt_rnd_id(SId, PId, OId, Hdt),
-  hdt_post_triple(Hdt, Triple, TripleId).
+  post_triple(Hdt, Triple, TripleId).
 
 
 
@@ -441,44 +438,44 @@ hdt_term_blob(Hdt, name, Name) :-
 % node
 hdt_term_blob(Hdt, node, Node) :-
   (   var(Node)
-  ->  (   hdt_term_(Hdt, shared, String),
-          String = Node
-      ;   hdt_term_(Hdt, subject, String),
-          String = Node
-      ;   hdt_term_(Hdt, object, String),
-          post_object(Node, String)
+  ->  (   hdt_term_(Hdt, shared, Atom),
+          Atom = Node
+      ;   hdt_term_(Hdt, subject, Atom),
+          Atom = Node
+      ;   hdt_term_(Hdt, object, Atom),
+          post_object(Node, Atom)
       )
   ;   hdt_(Hdt, content, Node, _, _)
   ->  true
-  ;   pre_object(Hdt, Node, String),
-      hdt_(Hdt, content, _, _, String)
+  ;   pre_object(Hdt, Node, Atom),
+      hdt_(Hdt, content, _, _, Atom)
   ->  true
   ).
 % object
 hdt_term_blob(Hdt, object, O) :-
   (   var(O)
-  ->  (   hdt_term_(Hdt, shared, String),
-          String = O
-      ;   hdt_term_(Hdt, object, String),
-          post_object(O, String)
+  ->  (   hdt_term_(Hdt, shared, Atom),
+          Atom = O
+      ;   hdt_term_(Hdt, object, Atom),
+          post_object(O, Atom)
       )
-  ;   pre_object(Hdt, O, String),
-      hdt_(Hdt, content, _, _, String)
+  ;   pre_object(Hdt, O, Atom),
+      hdt_(Hdt, content, _, _, Atom)
   ->  true
   ).
 % predicate
 hdt_term_blob(Hdt, predicate, P) :-
   (   var(P)
-  ->  hdt_term_(Hdt, predicate, String),
-      String = P
+  ->  hdt_term_(Hdt, predicate, Atom),
+      Atom = P
   ;   hdt_(Hdt, content, _, P, _)
   ->  true
   ).
 % shared
 hdt_term_blob(Hdt, shared, Shared) :-
   (   var(Shared)
-  ->  hdt_term_(Hdt, shared, String),
-      String = Shared
+  ->  hdt_term_(Hdt, shared, Atom),
+      Atom = Shared
   ;   rdf_is_subject(Shared),
       hdt_(Hdt, content, Shared, _, _),
       hdt_(Hdt, content, _, _, Shared)
@@ -487,10 +484,10 @@ hdt_term_blob(Hdt, shared, Shared) :-
 % subject
 hdt_term_blob(Hdt, subject, S) :-
   (   var(S)
-  ->  (   hdt_term_(Hdt, shared, String)
-      ;   hdt_term_(Hdt, subject, String)
+  ->  (   hdt_term_(Hdt, shared, Atom)
+      ;   hdt_term_(Hdt, subject, Atom)
       ),
-      String = S
+      Atom = S
   ;   hdt_(Hdt, content, S, _, _)
   ->  true
   ).
@@ -627,17 +624,17 @@ hdt_header(S, P, O) :-
 
 hdt_header(S, P, O, Hdt0) :-
   hdt_blob(Hdt0, Hdt),
-  hdt_(Hdt, header, S, P, O0),
-  header_object(O0, O).
+  hdt_(Hdt, header, S, P, Atom),
+  header_object(Atom, O).
 
-header_object(O0, O) :-
-  string(O0), !,
-  header_untyped_object(O0, O).
+header_object(Atom, O) :-
+  string(Atom), !,
+  header_untyped_object(Atom, O).
 header_object(O, O).
 
-header_untyped_object(O0, O) :-
+header_untyped_object(Atom, O) :-
   catch(
-    xsd_number_string(N, O0),
+    xsd_number_string(N, Atom),
     error(syntax_error(xsd_number), _),
     fail
   ), !,
@@ -645,9 +642,9 @@ header_untyped_object(O0, O) :-
   ->  rdf_equal(O, N^^xsd:integer)
   ;   rdf_equal(O, N^^xsd:float)
   ).
-header_untyped_object(O0, O) :-
+header_untyped_object(Atom, O) :-
   catch(
-    xsd_time_string(Term, Type, O0),
+    xsd_time_string(Term, Type, Atom),
     error(_,_),
     fail
   ), !,
@@ -708,23 +705,104 @@ hdt_blob(Hdt, Hdt).
   
 
 
-%! hdt_prefix(+Hdt, +Role:oneof([subject,predicate,object]), +Prefix:atom,
-%!            -Term) is det.
+%! iri_id(+Hdt:blob, +Role:atom, ?Iri:atom, ?Id:positive_integer)
+
+iri_id(_, _, Iri, _) :-
+  atom(Iri), !.
+iri_id(Hdt, Role, Iri, Id) :-
+  hdt_dict_(Hdt, Role, Iri, Id).
+
+
+
+%! post_object(?O, +Atom) is det.
+
+post_object(O, Atom1) :-
+  atom_concat('"', Atom2, Atom1), !,
+  atom_codes(Atom2, Codes),
+  phrase(post_literal(O), Codes).
+post_object(NonLiteral, NonLiteral).
+
+post_literal(Lit) -->
+  string(Codes1),
+  "\"", !,
+  {string_codes(Lex, Codes1)},
+  (   "^"
+  ->  "^<",
+      string(Codes2),
+      ">",
+      {
+        atom_codes(D, Codes2),
+        rdf11:post_object(Lit, literal(type(D,Lex)))
+      }
+  ;   "@"
+  ->  remainder(Codes2),
+      {
+        atom_codes(LTag, Codes2),
+        rdf11:post_object(Lit, literal(lang(LTag,Lex)))
+      }
+  ).
+
+
+
+%! post_triple(+Hdt:blob, ?Triple:compound, +TripleId:compound) is det.
+
+post_triple(Hdt, t(S,P,O), t(SId,PId,OId)) :-
+  post_iri_id(Hdt, subject, S, SId),
+  post_iri_id(Hdt, predicate, P, PId),
+  (   ground(O)
+  ->  true
+  ;   hdt_dict_(Hdt, object, Atom, OId),
+      post_object(O, Atom)
+  ).
+
+
+
+%! pre_object(+Hdt:blob, ?O, -Atom) is det.
 %
-% True when Term has the given Role in some triple in Hdt and starts
-% with Prefix.  This performs a prefix match on the internal string
-% representation.  Literals are only found if the first character of
-% Base is `"`.
-%
-% @arg Role is one of `subject`, `predicate` or `object`.
-%
-% @arg Prefix is a string or atom.
+% This helper predicate implements the feature that literals can be
+% entered partially.  Specifically, it is possible to only supply
+% their lexical form, and match their language tag or datatype IRI.
+
+pre_object(_, Var, Var) :-
+  var(Var), !.
+pre_object(Hdt, Lex@LTag, Atom) :- !,
+  must_be(string, Lex),
+  (   var(LTag)
+  ->  atomic_list_concat(['"',Lex,'"@'], Prefix),
+      hdt_prefix_(Hdt, object, Prefix, O),
+      pre_object(Hdt, O, Atom)
+  ;   atomic_list_concat(['"',Lex,'"@',LTag], Atom)
+  ).
+pre_object(Hdt, Val^^D, Atom) :- !,
+  must_be(ground, Val),
+  rdf11:rdf_lexical_form(Val^^D, Lex^^D),
+  (   var(D)
+  ->  atomic_list_concat(['"',Lex,'"^^<'], Prefix),
+      hdt_prefix_(Hdt, object, Prefix, O),
+      pre_object(Hdt, O, Atom)
+  ;   atomic_list_concat(['"',Lex,'"^^<',D,>], Atom)
+  ).
+pre_object(_, NonLiteral, NonLiteral) :-
+  must_be(atom, NonLiteral).
 
 
 
-%! hdt_register_graph(+Hdt:blob, +G:atom) is det.
+%! pre_triple(+Hdt:blob,  ?Triple:compound, -TripleId:compound) is det.
 
-hdt_register_graph_(Hdt, G) :-
+pre_triple(Hdt, t(S,P,O), t(SId,PId,OId)) :-
+  pre_iri_id(Hdt, subject, S, SId),
+  pre_iri_id(Hdt, predicate, P, PId),
+  (   ground(O)
+  ->  pre_object(Hdt, O, Atom),
+      hdt_dict_(Hdt, object, Atom, OId)
+  ;   true
+  ).
+
+
+
+%! register_graph(+Hdt:blob, +G:atom) is det.
+
+register_graph_(Hdt, G) :-
   must_be(atom, G),
   with_mutex(hdt_graph_, (
     (   hdt_graph_(Hdt, _)
@@ -734,102 +812,6 @@ hdt_register_graph_(Hdt, G) :-
     ;   assert(hdt_graph_(Hdt, G))
     )
   )).
-
-
-
-%! post_object(?O, +Var) is det.
-%
-% Pre/post object processing. The HDT library itself is purely string
-% based.
-
-post_object(O, _Hdt) :-
-  ground(O), !.
-post_object(O, IRI) :-
-  atom(IRI), !,
-  O = IRI.
-post_object(O, Hdt) :-
-  rdf_canonical_literal(Hdt, O).
-
-
-
-%! pre_object(+Hdt:blob, ?O, -Var) is det.
-
-pre_object(_, O, O0) :-
-  atom(O), \+ boolean(O), !,
-  O0 = O.
-pre_object(_, O, O0) :-
-  ground(O), !,
-  rdf_lexical_form(O, Lex),
-  canonical_string(Lex, O0).
-pre_object(Hdt, O, O0) :-
-  nonvar(O),
-  O = Lex@LTag,
-  ground(Lex),
-  atomics_to_string(["\"", Lex, "\"@"], Prefix),
-  hdt_prefix_(Hdt, object, Prefix, Term),
-  Term = Lex@LTag,
-  canonical_string(Lex@LTag, O0).
-pre_object(_, _, _).
-
-canonical_string(Lex^^D, Hdt) :-
-  atomics_to_string(["\"", Lex, "\"^^<", D, ">"], Hdt).
-canonical_string(Lex@LTag, Hdt) :-
-  atomics_to_string(["\"", Lex, "\"@", LTag], Hdt).
-
-boolean(false).
-boolean(true).
-
-
-
-%! hdt_post_triple(+Hdt:blob, ?Triple:compound, +TripleId:compound) is det.
-%
-% Perform term->id and id->term translation for triples.  The
-% predicate hdt_search/4 could be defined as:
-%
-%    ==
-%    hdt_search(Hdt, S, P, O) :-
-%        Triple   = t(S,P,O),
-%        TripleId = t(SId,PId,OId),
-%        hdt_pre_triple(Hdt, Triple, TripleId),
-%        hdt_search_id(Hdt,SId,PId,OId),
-%        hdt_post_triple(Hdt, Triple, TripleId).
-%    ==
-%
-%  @see hdt_search_id/4.
-
-hdt_post_triple(Hdt, t(S,P,O), t(SId,PId,OId)) :-
-  post_iri_id(Hdt, subject, S, SId),
-  post_iri_id(Hdt, predicate, P, PId),
-  (   ground(O)
-  ->  true
-  ;   hdt_dict_(Hdt, object, String, OId),
-      post_object(O, String)
-  ).
-
-post_iri_id(_, _, S, _) :-
-  atom(S), !.
-post_iri_id(Hdt, Role, Term, Id) :-
-  hdt_dict_(Hdt, Role, Term, Id).
-
-
-
-%! hdt_pre_triple(+Hdt:blob,  ?Triple:compound, -TripleId:compound) is det.
-
-hdt_pre_triple(Hdt, t(S,P,O), t(SId,PId,OId)) :-
-  pre_iri_id(Hdt, subject, S, SId),
-  pre_iri_id(Hdt, predicate, P, PId),
-  (   ground(O)
-  ->  pre_object(Hdt, O, Var),
-      hdt_dict_(Hdt, object, Var, OId)
-  ;   true
-  ).
-
-pre_iri_id(_, _, Term, _) :-
-  var(Term), !.
-pre_iri_id(Hdt, Role, Term, Id) :-
-  hdt_dict_(Hdt, Role, Term, Id).
-
-
 
 
 

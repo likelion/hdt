@@ -44,10 +44,10 @@
 using namespace std;
 using namespace hdt;
 
+static void deleteHDT(HDT *hdt);
+static int get_triple_role(term_t t, TripleComponentRole *role);
 static mt19937 randomGenerator(time(0));
-
-static void	deleteHDT(HDT *hdt);
-static int	get_triple_role(term_t t, TripleComponentRole *role);
+static int unify_string(term_t t, const char *s);
 
 #define CATCH_HDT \
 	catch (char *e)				\
@@ -306,62 +306,6 @@ get_search_string(term_t t, char **s, unsigned flag, unsigned *flagp)
   }
 }
 
-static int
-unify_string(term_t t, const char *s)
-{ return PL_unify_chars(t, PL_ATOM|REP_UTF8, (size_t)-1, s);
-}
-
-
-static int
-unify_object(term_t t, const char *s)
-{ if ( s[0] == '"' )
-  { const char *e = s+strlen(s)-1;
-
-    for(;; e--)
-    { while( e>s && *e != '"' )
-	e--;
-      if ( e > s )
-      { if ( e[1] == '\0' )		/* No type nor lang??  In header ... */
-	{ term_t av = PL_new_term_refs(2);
-	  int rc;
-
-	  s++;
-	  rc = PL_unify_chars(t, PL_STRING|REP_UTF8, e-s, s);
-	  return rc;
-	} else if ( strncmp(e+1, "^^<", 3) == 0 )
-	{ term_t av = PL_new_term_refs(2);
-	  int rc;
-
-	  s++;
-	  rc = PL_unify_chars(av+0, PL_STRING|REP_UTF8, e-s, s);
-	  e += 4;
-	  rc = rc && PL_unify_chars(av+1, PL_ATOM|REP_UTF8, strlen(e)-1, e);
-	  rc = rc && PL_cons_functor_v(av, FUNCTOR_rdftype2, av);
-	  rc = rc && PL_unify(t, av);
-	  return rc;
-	} else if ( strncmp(e+1, "@", 1) == 0 )
-	{ term_t av = PL_new_term_refs(2);
-	  int rc;
-
-	  s++;
-	  rc = PL_unify_chars(av+0, PL_STRING|REP_UTF8, e-s, s);
-	  e += 2;
-	  rc = rc && PL_unify_chars(av+1, PL_ATOM|REP_UTF8, (size_t)-1, e);
-	  rc = rc && PL_cons_functor_v(av, FUNCTOR_rdflang2, av);
-	  rc = rc && PL_unify(t, av);
-	  return rc;
-	}
-      } else
-      { assert(0);
-	return FALSE;
-      }
-    }
-  }
-
-  return PL_unify_chars(t, PL_ATOM|REP_UTF8, (size_t)-1, s);
-}
-
-
 // hdt_(+HDT, +Where, ?S, ?P, ?O)
 PREDICATE_NONDET(hdt_, 5)
 { hdt_wrapper *symb;
@@ -373,16 +317,13 @@ PREDICATE_NONDET(hdt_, 5)
   { case PL_FIRST_CALL:
     { char *s, *p, *o;
       atom_t where;
-
       ctx = &ctx_buf;
-      if ( !get_hdt(A1, &symb) )
-	return FALSE;
-      if ( !PL_get_atom_ex(A2, &where) ||
+      if ( !get_hdt(A1, &symb) ||
+           !PL_get_atom_ex(A2, &where) ||
 	   !get_search_string(A3, &s, S_S, &ctx->flags) ||
 	   !get_search_string(A4, &p, S_P, &ctx->flags) ||
 	   !get_search_string(A5, &o, S_O, &ctx->flags) )
 	return FALSE;
-
       try
       { if ( where == ATOM_content )
 	  ctx->it = symb->hdt->search(s,p,o);
@@ -391,7 +332,6 @@ PREDICATE_NONDET(hdt_, 5)
 	else
 	  return PL_domain_error("hdt_where", A2);
       } CATCH_HDT;
-
       goto next;
     }
     case PL_REDO:
@@ -399,10 +339,9 @@ PREDICATE_NONDET(hdt_, 5)
     next:
     { if ( ctx->it->hasNext() )
       { TripleString *t = ctx->it->next();
-
 	if ( (!(ctx->flags&S_S) || unify_string(A3, t->getSubject().c_str())) &&
 	     (!(ctx->flags&S_P) || unify_string(A4, t->getPredicate().c_str())) &&
-	     (!(ctx->flags&S_O) || unify_object(A5, t->getObject().c_str())) )
+	     (!(ctx->flags&S_O) || unify_string(A5, t->getObject().c_str())) )
 	{ if ( ctx == &ctx_buf )
 	  { ctx = (search_it*)PL_malloc(sizeof(*ctx));
 	    *ctx = ctx_buf;
@@ -423,8 +362,12 @@ PREDICATE_NONDET(hdt_, 5)
 	PL_free(ctx);
       return rc;
   }
-
   return FALSE;
+}
+
+static int unify_string(term_t t, const char *s)
+{
+  return PL_unify_chars(t, PL_ATOM|REP_UTF8, (size_t)-1, s);
 }
 
 
@@ -592,7 +535,6 @@ PREDICATE_NONDET(hdt_term_, 3)
       if ( it->hasNext() )
       { unsigned char *s = it->next();
 	int rc;
-        // TBD: unify_object?
 	rc = PL_unify_chars(A3, PL_ATOM|REP_UTF8, (size_t)-1, (const char*)s);
 	it->freeStr(s);
 	if ( rc )
@@ -821,20 +763,37 @@ PREDICATE_NONDET(hdt_id_, 4)
 }
 
 
-// hdt_count_id_(+HDT, ?S, ?P, ?O, -Count)
+// hdt_count_(+HDT, ?S, ?P, ?O, -Count)
+PREDICATE(hdt_count_, 5)
+{ hdt_wrapper *symb;
+  unsigned int flags {0};
+  char *s, *p, *o;
+  if ( !get_hdt(A1, &symb) ||
+       !get_search_string(A2, &s, S_S, &flags) ||
+       !get_search_string(A3, &p, S_P, &flags) ||
+       !get_search_string(A4, &o, S_O, &flags) )
+    return FALSE;
+  try {
+    IteratorTripleString *it = symb->hdt->search(s,p,o);
+    long numResults = it->estimatedNumResults();
+    delete it;
+    return (A5 = numResults);
+  } CATCH_HDT;
+}
+
+
+// hdt_count_id_(+HDT, ?SId, ?PId, ?OId, -Count)
 PREDICATE(hdt_count_id_, 5)
 { hdt_wrapper *symb;
-  unsigned int flags=0;
+  unsigned int flags {0};
   size_t s, p, o;
-
   if ( !get_hdt(A1, &symb) ||
        !get_search_id(A2, &s, S_S, &flags) ||
        !get_search_id(A3, &p, S_P, &flags) ||
        !get_search_id(A4, &o, S_O, &flags) )
     return FALSE;
-
-  try
-  { TripleID t(s,p,o);
+  try {
+    TripleID t(s,p,o);
     IteratorTripleID *it = symb->hdt->getTriples()->search(t);
     long numResults = it->estimatedNumResults();
     delete it;

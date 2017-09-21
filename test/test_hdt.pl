@@ -1,7 +1,8 @@
 :- module(test_hdt, []).
 
+:- reexport(library(hdt)).
+
 :- use_module(library(apply)).
-:- use_module(library(hdt)).
 :- use_module(library(plunit)).
 :- use_module(library(semweb/rdf11)).
 
