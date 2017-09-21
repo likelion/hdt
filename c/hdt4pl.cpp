@@ -650,32 +650,29 @@ get_triple_role(term_t t, TripleComponentRole *role)
 PREDICATE(hdt_dict_, 4)
 { hdt_wrapper *symb;
   TripleComponentRole role;
-  size_t len; char *s;
-
+  size_t len;
+  char *s;
   if ( !get_hdt(A1, &symb) ||
        !get_triple_role(A2, &role) )
     return FALSE;
-
-  try
-  { Dictionary *dict = symb->hdt->getDictionary();
-
-    if ( !PL_is_variable(A3) )
-    { if ( PL_get_nchars(A3, &len, &s,
-			 CVT_ATOM|CVT_STRING|REP_UTF8|CVT_EXCEPTION) )
-      { std::string str(s);
+  try {
+    Dictionary *dict = symb->hdt->getDictionary();
+    if ( !PL_is_variable(A3) ) {
+      if ( PL_get_nchars(A3, &len, &s,
+			 CVT_ATOM|CVT_STRING|REP_UTF8|CVT_EXCEPTION) ) {
+        std::string str(s);
 	size_t id = dict->stringToId(str, role);
-
 	if ( id )
-	  return (A4 = (long)id);	/* signed/unsigned mismatch */
+	  return (A4 = (long) id); // signed/unsigned mismatch
       }
-    } else
-    { std::string str = dict->idToString((size_t)(long)A4, role);
-
+    } else if ( !PL_is_variable(A4) ) {
+      std::string str = dict->idToString((size_t) A4, role);
       if ( !str.empty() )
 	return (A3 = str.c_str());
+    } else {
+      return PL_instantiation_error(A3);
     }
   } CATCH_HDT;
-
   return FALSE;
 }
 
