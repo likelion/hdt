@@ -36,61 +36,55 @@
    hdt,
    [
    % HDT FILES
-     hdt_create/1,        % +RdfFile
-     hdt_create/2,        % +RdfFile, +Options
-     hdt_graph/2,         % ?Hdt, ?G
-     hdt_open/1,          % +HdtFile
-     hdt_open/2,          % +HdtFile, +Options
-     hdt_close/1,         % +G
+     hdt_create/1,      % +RdfFile
+     hdt_create/2,      % +RdfFile, +Options
+     hdt_graph/2,       % ?Hdt, ?G
+     hdt_open/1,        % +HdtFile
+     hdt_open/2,        % +HdtFile, +Options
+     hdt_close/1,       % +G
 
    % TERM ↔ ID
-     hdt_dict/3,          % +Role, ?Term, ?Id
-     hdt_dict/4,          % +Role, ?Term, ?Id, ?G
+     hdt_dict/3,        % +Role, ?Term, ?Id
+     hdt_dict/4,        % +Role, ?Term, ?Id, ?G
 
    % TRIPLES
-     hdt/3,               % ?S, ?P, ?O
-     hdt/4,               % ?S, ?P, ?O, ?G
-     hdt_count/4,         % ?S, ?P, ?O, ?Count
-     hdt_count/5,         % ?S, ?P, ?O, ?Count, ?G
-     hdt_count_id/4,      % ?SId, ?PId, ?OId, ?Count
-     hdt_count_id/5,      % ?SId, ?PId, ?OId, ?Count, ?G
-     hdt_id/3,            % ?SId, ?PId, ?OId
-     hdt_id/4,            % ?SId, ?PId, ?OId, ?G
-     hdt_rnd/3,           % ?S, ?P, ?O
-     hdt_rnd/4,           % ?S, ?P, ?O, ?G
-     hdt_rnd_id/3,        % ?SId, ?PId, ?OId
-     hdt_rnd_id/4,        % ?SId, ?PId, ?OId, ?G
+     hdt/3,             % ?S, ?P, ?O
+     hdt/4,             % ?S, ?P, ?O, ?G
+     hdt_count/4,       % ?S, ?P, ?O, ?Count
+     hdt_count/5,       % ?S, ?P, ?O, ?Count, ?G
+     hdt_count_id/4,    % ?SId, ?PId, ?OId, ?Count
+     hdt_count_id/5,    % ?SId, ?PId, ?OId, ?Count, ?G
+     hdt_id/3,          % ?SId, ?PId, ?OId
+     hdt_id/4,          % ?SId, ?PId, ?OId, ?G
+     hdt_rnd/3,         % ?S, ?P, ?O
+     hdt_rnd/4,         % ?S, ?P, ?O, ?G
+     hdt_rnd_id/3,      % ?SId, ?PId, ?OId
+     hdt_rnd_id/4,      % ?SId, ?PId, ?OId, ?G
 
    % TERMS
-     hdt_term/2,          % +Role, ?Term
-     hdt_term/3,          % +Role, ?Term, ?G
-     hdt_term_count/2,    % +Role, ?Count
-     hdt_term_count/3,    % +Role, ?Count, ?G
-     hdt_term_id/2,       % +Role, ?Id
-     hdt_term_id/3,       % +Role, ?Id, ?G
-    %hdt_term_rnd/2,      % +Role, -Term
-    %hdt_term_rnd/3,      % +Role, -Term, ?G
-    %hdt_term_rnd_id/2,   % +Role, -Id
-    %hdt_term_rnd_id/3,   % +Role, -Id, ?G
+     hdt_term/2,        % +Role, ?Term
+     hdt_term/3,        % +Role, ?Term, ?G
+     hdt_term_count/2,  % +Role, ?Count
+     hdt_term_count/3,  % +Role, ?Count, ?G
+     hdt_term_id/2,     % +Role, ?Id
+     hdt_term_id/3,     % +Role, ?Id, ?G
+     hdt_term_rnd/2,    % +Role, -Term
+     hdt_term_rnd/3,    % +Role, -Term, ?G
+     hdt_term_rnd_id/2, % +Role, -Id
+     hdt_term_rnd_id/3, % +Role, -Id, ?G
 
    % PREFIX SEARCH
-     hdt_prefix/3,        % +Role, +Prefix, ?Term
-     hdt_prefix/4,        % +Role, +Prefix, ?Term, ?G
-    %hdt_prefix_id/3,     % +Role, +Prefix, ?Id
-    %hdt_prefix_id/4,     % +Role, +Prefix, ?Id, ?G
-    %hdt_prefix_count/3,  % +Role, +Prefix, ?Count
-    %hdt_prefix_count/4,  % +Role, +Prefix, ?Count, ?G
-    %hdt_prefix_rnd/3,    % +Role, +Prefix, -Term
-    %hdt_prefix_rnd/4,    % +Role, +Prefix, -Term, ?G
-    %hdt_prefix_rnd_id/3, % +Role, +Prefix, -Id
-    %hdt_prefix_rnd_id/4, % +Role, +Prefix, -Id, ?G
+     hdt_prefix/3,      % +Role, +Prefix, ?Term
+     hdt_prefix/4,      % +Role, +Prefix, ?Term, ?G
+     hdt_prefix_id/3,   % +Role, +Prefix, ?Id
+     hdt_prefix_id/4,   % +Role, +Prefix, ?Id, ?G
 
    % OTHERS
-     hdt_header/3,        % ?S, ?P, ?O
-     hdt_header/4,        % ?S, ?P, ?O, +G
-     hdt_property/2,      % +Hdt, -Property
-     op(110, xfx, @),     % must be above `.'
-     op(650, xfx, ^^)     % must be above `:'
+     hdt_header/3,      % ?S, ?P, ?O
+     hdt_header/4,      % ?S, ?P, ?O, +G
+     hdt_property/2,    % +Hdt, -Property
+     op(110, xfx, @),   % must be above `.'
+     op(650, xfx, ^^)   % must be above `:'
    ]
 ).
 
@@ -574,10 +568,15 @@ hdt_term_rnd(Role, Term, Hdt0) :-
 
 %! hdt_term_rnd_id(+Role, -Id) is nondet.
 
+hdt_term_rnd_id(Role, Id) :-
+  hdt_term_rnd_id(Role, Id, _).
+
 
 %! hdt_term_rnd_id(+Role, -Id, ?G) is nondet.
 
-
+hdt_term_rnd_id(Role, Id, Hdt0) :-
+  hdt_blob(Hdt0, Hdt),
+  hdt_term_rnd_id_(Hdt, Role, Id).
 
 
 
@@ -601,31 +600,15 @@ hdt_prefix(Role, Prefix, Term, Hdt0) :-
 
 %! hdt_prefix_id(+Role, +Prefix:atom, ?Id:nonneg) is nondet.
 
-
+hdt_prefix_id(Role, Prefix, Id) :-
+  hdt_prefix_id(Role, Prefix, Id, _).
 
 
 %! hdt_prefix_id(+Role, +Prefix:atom, ?Id:nonneg, ?G) is nondet.
 
-
-
-%! hdt_prefix_count(+Role, +Prefix:atom, -Count:nonneg) is nondet.
-
-
-%! hdt_prefix_count(+Role, +Prefix:atom, -Count:nonneg, ?G) is nondet.
-
-
-
-%! hdt_prefix_rnd(+Role, +Prefix, -Term) is nondet.
-
-
-%! hdt_prefix_rnd(+Role, +Prefix, -Term, ?G) is nondet.
-
-
-
-%! hdt_prefix_rnd_id(+Role, +Prefix, -Id) is nondet.
-
-
-%! hdt_prefix_rnd_id(+Role, +Prefix, -Id, ?G) is nondet.
+hdt_prefix_id(Role, Prefix, Id, Hdt0) :-
+  hdt_blob(Hdt0, Hdt),
+  hdt_prefix_id_(Hdt, Role, Prefix, Id).
 
 
 

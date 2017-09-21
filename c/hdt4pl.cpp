@@ -469,7 +469,7 @@ PREDICATE_NONDET(hdt_prefix_, 4)
 
 
 // hdt_prefix_id_(+Hdt, +Role, +Prefix, -Id)
-PREDICATE_NONDET(hdt_term_id_, 3)
+PREDICATE_NONDET(hdt_prefix_id_, 4)
 { IteratorUInt *it;
   switch(PL_foreign_control(handle)) {
   case PL_FIRST_CALL:
