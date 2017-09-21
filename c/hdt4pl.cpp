@@ -569,9 +569,9 @@ PREDICATE_NONDET(hdt_term_, 3)
 /*// hdt_term_id_(+Hdt, +Role, -Term)
 PREDICATE(hdt_term_id_, 3)
 { hdt_wrapper *symb;
-  TripleComponentRole role;
+  atom_t role;
   if ( !get_hdt(A1, &symb) ||
-       !get_triple_role(A2, &role) )
+       !PL_get_atom_ex(A2, &role) )
     return FALSE;
   try {
     Dictionary *dict = symb->hdt->getDictionary();
@@ -603,24 +603,31 @@ PREDICATE(hdt_term_rnd_, 3)
     return FALSE;
   try {
     Dictionary *dict = symb->hdt->getDictionary();
-    if ( role == ATOM_subject )
-      it = dict->getSubjects();
-    else if ( role == ATOM_predicate )
-      it = dict->getPredicates();
-    else if ( role == ATOM_shared )
-      it = dict->getShared();
-    else if ( role == ATOM_object )
-      it = dict->getObjects();
-    else
+    long min, max;
+    if ( role == ATOM_object ) {
+      min = (long) dict->getNshared() + 1;
+      max = (long) dict->getMaxObjectID();
+    } else if ( role == ATOM_subject ) {
+      min = (long) dict->getNshared() + 1;
+      max = (long) dict->getMaxSubjectID();
+    } else if ( role == ATOM_predicate ) {
+      min = 1;
+      max = (long) dict->getNpredicates();
+    } else if ( role == ATOM_shared ) {
+      min = 1;
+      max = (long) dict->getNshared();
+    } else {
       return PL_domain_error("hdt_role", A2);
-    size_t max = it->estimatedNumResults() - 1;
-    uniform_int_distribution<unsigned int> distribution(0, max);
+    }
+    uniform_int_distribution<unsigned int> distribution(min, max);
     unsigned int index = distribution(randomGenerator);
     Sprintf("%d from 0..%d\n", index, max);
-    it->goTo(index);
-    unsigned char *s = it->next();
-    delete it;
-    return PL_unify_chars(A3, PL_ATOM|REP_UTF8, (size_t)-1, (const char*)s);
+    TripleComponentRole dict_role;
+    if ( !get_triple_role(role, &dict_role))
+      return FALSE;
+    std::string str = dict->idToString((size_t)(long)A4, dict_role);
+    if ( !str.empty() )
+      return ( A3 = str.c_str() );
   } CATCH_HDT;
   return FALSE;
 }
@@ -635,18 +642,19 @@ PREDICATE(hdt_term_rnd_id_, 3)
     return FALSE;
   try {
     Dictionary *dict = symb->hdt->getDictionary();
+    long min, max;
     if ( role == ATOM_object ) {
-      long min = (long) dict->getNshared() + 1;
-      long max = (long) dict->getMaxObjectID();
+      min = (long) dict->getNshared() + 1;
+      max = (long) dict->getMaxObjectID();
     } else if ( role == ATOM_subject ) {
-      long min = (long) dict->getNshared() + 1;
-      long max = (long) dict->getMaxSubjectID();
+      min = (long) dict->getNshared() + 1;
+      max = (long) dict->getMaxSubjectID();
     } else if ( role == ATOM_predicate ) {
-      long min = 1;
-      long max = (long) dict->getNpredicates();
+      min = 1;
+      max = (long) dict->getNpredicates();
     } else if ( role == ATOM_shared ) {
-      long min = 1;
-      long max = (long) dict->getNshared();
+      min = 1;
+      max = (long) dict->getNshared();
     } else {
       return PL_domain_error("hdt_role", A2);
     }
@@ -659,12 +667,9 @@ PREDICATE(hdt_term_rnd_id_, 3)
 }
 
 
-
-
 static int
 get_triple_role(term_t t, TripleComponentRole *role)
 { atom_t name;
-
   if ( !PL_get_atom_ex(t, &name) )
     return FALSE;
   if ( name == ATOM_subject )
@@ -673,9 +678,11 @@ get_triple_role(term_t t, TripleComponentRole *role)
     *role = PREDICATE;
   else if ( name == ATOM_object )
     *role = OBJECT;
+  else if ( name == ATOM_shared )
+    // We can pick either subject or object here.
+    *role = SUBJECT;
   else
     return PL_domain_error("hdt_role", t);
-
   return TRUE;
 }
 
@@ -839,7 +846,7 @@ PREDICATE(hdt_rnd_id_, 4)
     uniform_int_distribution<unsigned int> distribution(0, max);
     unsigned int index = distribution(randomGenerator);
     Sprintf("%d from 0..%d\n", index, max);
-    it->goTo(index);
+    it->skip(index);
     if (it->hasNext()) {
       TripleID *t = it->next();
       bool rc =
