@@ -212,7 +212,7 @@ hdt_error(const char *e)
 		 *	     PREDICATES		*
 		 *******************************/
 
-
+// hdt_open(+File, -Hdt, +Options)
 PREDICATE(hdt_open_, 3)
 { HDT *hdt;
   atom_t access = ATOM_map;
@@ -269,6 +269,7 @@ PREDICATE(hdt_open_, 3)
 }
 
 
+// hdt_close(+Hdt)
 PREDICATE(hdt_close_, 1)
 { hdt_wrapper *symb;
 
@@ -361,9 +362,7 @@ unify_object(term_t t, const char *s)
 }
 
 
-/** hdt_(+HDT, +Where, ?S, ?P, ?O)
-*/
-
+// hdt_(+HDT, +Where, ?S, ?P, ?O)
 PREDICATE_NONDET(hdt_, 5)
 { hdt_wrapper *symb;
   search_it ctx_buf = {0};
@@ -429,9 +428,7 @@ PREDICATE_NONDET(hdt_, 5)
 }
 
 
-/** hdt_prefix_(+HDT, +Role, +Prefix, -Term)
-*/
-
+// hdt_prefix_(+HDT, +Role, +Prefix, -Term)
 PREDICATE_NONDET(hdt_prefix_, 4)
 { IteratorUCharString *it;
 
@@ -480,6 +477,7 @@ PREDICATE_NONDET(hdt_prefix_, 4)
 		 *      DICTIONARY ACCESS	*
 		 *******************************/
 
+// hdt_property_(+Hdt, ?Property)
 PREDICATE(hdt_property_, 2)
 { hdt_wrapper *symb;
   atom_t name; size_t arity;
@@ -522,32 +520,29 @@ PREDICATE(hdt_property_, 2)
 }
 
 
+// hdt_term_(+Hdt, +Role, -Term)
 PREDICATE_NONDET(hdt_term_, 3)
 { IteratorUCharString *it;
-
   switch(PL_foreign_control(handle))
   { case PL_FIRST_CALL:
     { hdt_wrapper *symb;
-      atom_t a;
-
+      atom_t role;
       if ( !get_hdt(A1, &symb) ||
-	   !PL_get_atom_ex(A2, &a) )
+	   !PL_get_atom_ex(A2, &role) )
 	return FALSE;
-
       try
       { Dictionary *dict = symb->hdt->getDictionary();
-	if ( a == ATOM_subject )
+	if ( role == ATOM_subject )
 	  it = dict->getSubjects();
-	else if ( a == ATOM_predicate )
+	else if ( role == ATOM_predicate )
 	  it = dict->getPredicates();
-	else if ( a == ATOM_shared )
+	else if ( role == ATOM_shared )
 	  it = dict->getShared();
-	else if ( a == ATOM_object )
+	else if ( role == ATOM_object )
 	  it = dict->getObjects();
 	else
 	  return PL_domain_error("hdt_term", A2);
       } CATCH_HDT;
-
       goto next;
     }
     case PL_REDO:
@@ -556,7 +551,6 @@ PREDICATE_NONDET(hdt_term_, 3)
       if ( it->hasNext() )
       { unsigned char *s = it->next();
 	int rc;
-
 	rc = PL_unify_chars(A3, PL_ATOM|REP_UTF8, (size_t)-1, (const char*)s);
 	it->freeStr(s);
 	if ( rc )
@@ -572,43 +566,99 @@ PREDICATE_NONDET(hdt_term_, 3)
 }
 
 
-PREDICATE_NONDET(hdt_object_, 2)
+/*// hdt_term_id_(+Hdt, +Role, -Term)
+PREDICATE(hdt_term_id_, 3)
+{ hdt_wrapper *symb;
+  TripleComponentRole role;
+  if ( !get_hdt(A1, &symb) ||
+       !get_triple_role(A2, &role) )
+    return FALSE;
+  try {
+    Dictionary *dict = symb->hdt->getDictionary();
+    if ( role == ATOM_object )
+      long id = BETWEEN((long)dict->getNshared()+1,
+                        (long)dict->getMaxObjectID());
+    else if ( role == ATOM_subject )
+      long id = BETWEEN((long)dict->getNshared()+1,
+                        (long)dict->getMaxSubjectID());
+    else if ( role == ATOM_predicate )
+      long id = BETWEEN(1,(long)dict->getNpredicates());
+    else if ( role == ATOM_shared )
+      long id = BETWEEN(1, (long)dict->getNshared());
+    else
+      return PL_domain_error("hdt_role", A2);
+    return PL_unify_integer(A3, id);
+  } CATCH_HDT;
+  return FALSE;
+}*/
+
+
+// hdt_term_rnd_(+Hdt, +Role, -Term)
+PREDICATE(hdt_term_rnd_, 3)
 { IteratorUCharString *it;
-  uintptr_t mask = 0;
-
-  switch(PL_foreign_control(handle))
-  { case PL_FIRST_CALL:
-    { hdt_wrapper *symb;
-      atom_t a;
-
-      if ( !get_hdt(A1, &symb) )
-	return FALSE;
-
-      try
-      { it = symb->hdt->getDictionary()->getObjects();
-      } CATCH_HDT;
-      goto next;
-    }
-    case PL_REDO:
-      it = (IteratorUCharString*)PL_foreign_context_address(handle);
-    next:
-      if ( it->hasNext() )
-      { unsigned char *s = it->next();
-	int rc;
-
-	rc = unify_object(A2, (const char*)s);
-	it->freeStr(s);
-	if ( rc )
-	  PL_retry_address((void*)it);
-      }
-      delete it;
-      return FALSE;
-    case PL_PRUNED:
-      it = (IteratorUCharString*)PL_foreign_context_address(handle);
-      delete it;
-      return TRUE;
-  }
+  hdt_wrapper *symb;
+  atom_t role;
+  if ( !get_hdt(A1, &symb) ||
+       !PL_get_atom_ex(A2, &role) )
+    return FALSE;
+  try {
+    Dictionary *dict = symb->hdt->getDictionary();
+    if ( role == ATOM_subject )
+      it = dict->getSubjects();
+    else if ( role == ATOM_predicate )
+      it = dict->getPredicates();
+    else if ( role == ATOM_shared )
+      it = dict->getShared();
+    else if ( role == ATOM_object )
+      it = dict->getObjects();
+    else
+      return PL_domain_error("hdt_role", A2);
+    size_t max = it->estimatedNumResults() - 1;
+    uniform_int_distribution<unsigned int> distribution(0, max);
+    unsigned int index = distribution(randomGenerator);
+    Sprintf("%d from 0..%d\n", index, max);
+    it->goTo(index);
+    unsigned char *s = it->next();
+    delete it;
+    return PL_unify_chars(A3, PL_ATOM|REP_UTF8, (size_t)-1, (const char*)s);
+  } CATCH_HDT;
+  return FALSE;
 }
+
+
+// hdt_term_rnd_id_(+Hdt, +Role, -Id)
+PREDICATE(hdt_term_rnd_id_, 3)
+{ hdt_wrapper *symb;
+  TripleComponentRole role;
+  if ( !get_hdt(A1, &symb) ||
+       !get_triple_role(A2, &role) )
+    return FALSE;
+  try {
+    Dictionary *dict = symb->hdt->getDictionary();
+    if ( role == ATOM_object ) {
+      long min = (long) dict->getNshared() + 1;
+      long max = (long) dict->getMaxObjectID();
+    } else if ( role == ATOM_subject ) {
+      long min = (long) dict->getNshared() + 1;
+      long max = (long) dict->getMaxSubjectID();
+    } else if ( role == ATOM_predicate ) {
+      long min = 1;
+      long max = (long) dict->getNpredicates();
+    } else if ( role == ATOM_shared ) {
+      long min = 1;
+      long max = (long) dict->getNshared();
+    } else {
+      return PL_domain_error("hdt_role", A2);
+    }
+    uniform_int_distribution<unsigned int> distribution(min, max);
+    unsigned int index = distribution(randomGenerator);
+    Sprintf("%d from 0..%d\n", index, max);
+    return PL_unify_integer(A3, index);
+  } CATCH_HDT;
+  return FALSE;
+}
+
+
 
 
 static int
@@ -630,9 +680,7 @@ get_triple_role(term_t t, TripleComponentRole *role)
 }
 
 
-/** hdt_dict_(+HDT, +Role, ?String, ?Id)
-*/
-
+// hdt_dict_(+HDT, +Role, ?String, ?Id)
 PREDICATE(hdt_dict_, 4)
 { hdt_wrapper *symb;
   TripleComponentRole role;
@@ -692,9 +740,7 @@ get_search_id(term_t t, size_t *id, unsigned flag, unsigned *flagp)
 
 
 
-/** hdt_id_(+HDT, ?SId, ?PId, ?OId)
-*/
-
+// hdt_id_(+HDT, ?SId, ?PId, ?OId)
 PREDICATE_NONDET(hdt_id_, 4)
 { hdt_wrapper *symb;
   searchid_it ctx_buf = {0};
@@ -753,9 +799,7 @@ PREDICATE_NONDET(hdt_id_, 4)
 }
 
 
-/** hdt_count_id_(+HDT, ?S, ?P, ?O, -Count)
-*/
-
+// hdt_count_id_(+HDT, ?S, ?P, ?O, -Count)
 PREDICATE(hdt_count_id_, 5)
 { hdt_wrapper *symb;
   unsigned int flags=0;
@@ -777,9 +821,7 @@ PREDICATE(hdt_count_id_, 5)
 }
 
 
-/** hdt_rnd_id_(+HDT, +Node, -P, -O)
- */
-
+// hdt_rnd_id_(+HDT, ?S, ?P, ?O)
 PREDICATE(hdt_rnd_id_, 4)
 {
   hdt_wrapper *symb;

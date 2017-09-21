@@ -66,8 +66,8 @@
      hdt_term/3,          % +Role, ?Term, ?G
      hdt_term_count/2,    % +Role, ?Count
      hdt_term_count/3,    % +Role, ?Count, ?G
-    %hdt_term_id/2,       % +Role, ?Id
-    %hdt_term_id/3,       % +Role, ?Id, ?G
+     hdt_term_id/2,       % +Role, ?Id
+     hdt_term_id/3,       % +Role, ?Id, ?G
     %hdt_term_rnd/2,      % +Role, -Term
     %hdt_term_rnd/3,      % +Role, -Term, ?G
     %hdt_term_rnd_id/2,   % +Role, -Id
@@ -98,7 +98,7 @@
 
 @author Jan Wielemaker
 @author Wouter Beek
-@version 2017-09-18
+@version 2017/09
 */
 
 :- use_module(library(error)).
@@ -201,11 +201,22 @@ hdt_graph(G) :-
 %! hdt_graph(+Hdt:blob, -G:atom) is semidet.
 %! hdt_graph(-Hdt:blob, +G:atom) is semidet.
 %! hdt_graph(-Hdt:blob, -G:atom) is nondet.
+%
+% @throws existence_error
+% @throws instantiation_error
 
 hdt_graph(Hdt, G) :-
   with_mutex(hdt_graph_, (
     hdt_graph_(Hdt, G)
-  )).
+  )), !.
+hdt_graph(_, G) :-
+  ground(G), !,
+  existence_error(hdt_graph, G).
+hdt_graph(Hdt, G) :-
+  ground(G), !,
+  existence_error(hdt_blob, Hdt).
+hdt_graph(_, _) :-
+  instantiation_error(_).
 
 
 
@@ -305,6 +316,7 @@ hdt(S, P, O) :-
 
 hdt(S, P, O, Hdt0) :-
   hdt_blob(Hdt0, Hdt),
+  (var(S) -> true ; \+ rdf_is_literal(S)),
   pre_object(Hdt, O, O0),
   hdt_(Hdt, content, S, P, O0),
   post_object(O, O0).
@@ -494,42 +506,71 @@ hdt_term_blob(Hdt, subject, S) :-
 
 
 %! hdt_term_count(+Role, -Count:nonneg) is nondet.
+%! hdt_term_count(-Role, -Count:nonneg) is multi.
 
 hdt_term_count(node, Count) :-
   hdt_term_count(node, Count, _).
 
 
 %! hdt_term_count(+Role, -Count:nonneg, ?G) is nondet.
+%! hdt_term_count(-Role, -Count:nonneg, ?G) is multi.
 
 hdt_term_count(Role, Count, Hdt0) :-
   hdt_blob(Hdt0, Hdt),
   hdt_term_count_blob(Hdt, Role, Count).
 
+hdt_term_count_blob(Hdt, term, Count) :-
+  maplist(hdt_term_count_blob(Hdt), [predicate,node], Counts),
+  sum_list(Counts, Count).
 hdt_term_count_blob(Hdt, node, Count) :-
   maplist(hdt_term_count_blob(Hdt), [object,shared,subject], Counts),
   sum_list(Counts, Count).
 hdt_term_count_blob(Hdt, object, Count) :-
-  hdt_header(Hdt, _, '<http://rdfs.org/ns/void#distinctObjects>', Count^^_).
+  hdt_header(_, '<http://rdfs.org/ns/void#distinctObjects>', Count^^_, Hdt).
 hdt_term_count_blob(Hdt, predicate, Count) :-
-  hdt_header(Hdt, _, '<http://rdfs.org/ns/void#properties>', Count^^_).
+  hdt_header(_, '<http://rdfs.org/ns/void#properties>', Count^^_, Hdt).
 hdt_term_count_blob(Hdt, shared, Count) :-
-  hdt_header(Hdt, _, '<http://purl.org/HDT/hdt#dictionarynumSharedSubjectObject>', Count^^_).
+  hdt_header(_, '<http://purl.org/HDT/hdt#dictionarynumSharedSubjectObject>',
+             Count^^_, Hdt).
 hdt_term_count_blob(Hdt, subject, Count) :-
-  hdt_header(Hdt, _, '<http://rdfs.org/ns/void#distinctSubjects>', Count^^_).
+  hdt_header(_, '<http://rdfs.org/ns/void#distinctSubjects>', Count^^_, Hdt).
 
 
 
 %! hdt_term_id(+Role, -Id) is nondet.
 
+hdt_term_id(Role, Id) :-
+  hdt_term_id(Role, Id, _).
+
 
 %! hdt_term_id(+Role, -Id, ?G) is nondet.
+
+hdt_term_id(Role1, Id, Hdt) :-
+  hdt_term(Role1, Term, Hdt),
+  narrow_role(Role1, Role2),
+  hdt_dict(Role2, Term, Id, Hdt).
+
+narrow_role(node, object).
+narrow_role(node, subject).
+narrow_role(object, object).
+narrow_role(predicate, predicate).
+narrow_role(shared, object).
+narrow_role(shared, subject).
+narrow_role(subject, subject).
 
 
 
 %! hdt_term_rnd(+Role, -Term) is nondet.
 
+hdt_term_rnd(Role, Term) :-
+  hdt_term_rnd(Role, Term, _).
+
 
 %! hdt_term_rnd(+Role, -Term, ?G) is nondet.
+
+hdt_term_rnd(Role, Term, Hdt0) :-
+  hdt_blob(Hdt0, Hdt),
+  hdt_term_rnd_(Hdt, Role, Term).
 
 
 
