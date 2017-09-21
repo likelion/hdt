@@ -592,6 +592,7 @@ PREDICATE_NONDET(hdt_term_, 3)
       if ( it->hasNext() )
       { unsigned char *s = it->next();
 	int rc;
+        // TBD: unify_object?
 	rc = PL_unify_chars(A3, PL_ATOM|REP_UTF8, (size_t)-1, (const char*)s);
 	it->freeStr(s);
 	if ( rc )

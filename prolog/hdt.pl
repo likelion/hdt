@@ -292,9 +292,9 @@ hdt_dict(Role, Term, Id) :-
 hdt_dict(Role, Term, Id, Hdt0) :- !,
   hdt_blob(Hdt0, Hdt),
   (   Role == object
-  ->  pre_object(Hdt, Term, Var),
-      hdt_dict_(Hdt, object, Var, Id),
-      post_object(Term, Var)
+  ->  pre_object(Hdt, Term, String),
+      hdt_dict_(Hdt, object, String, Id),
+      post_object(Term, String)
   ;   hdt_dict_(Hdt, Role, Term, Id)
   ).
 
@@ -449,44 +449,44 @@ hdt_term_blob(Hdt, name, Name) :-
 % node
 hdt_term_blob(Hdt, node, Node) :-
   (   var(Node)
-  ->  (   hdt_term_(Hdt, shared, Var),
-          Var = Node
-      ;   hdt_term_(Hdt, subject, Var),
-          Var = Node
-      ;   hdt_object_(Hdt, Var),
-          post_object(Node, Var)
+  ->  (   hdt_term_(Hdt, shared, String),
+          String = Node
+      ;   hdt_term_(Hdt, subject, String),
+          String = Node
+      ;   hdt_term_(Hdt, object, String),
+          post_object(Node, String)
       )
   ;   hdt_(Hdt, content, Node, _, _)
   ->  true
-  ;   pre_object(Hdt, Node, Var),
-      hdt_(Hdt, content, _, _, Var)
+  ;   pre_object(Hdt, Node, String),
+      hdt_(Hdt, content, _, _, String)
   ->  true
   ).
 % object
 hdt_term_blob(Hdt, object, O) :-
   (   var(O)
-  ->  (   hdt_term_(Hdt, shared, Var),
-          Var = O
-      ;   hdt_object_(Hdt, Var),
-          post_object(O, Var)
+  ->  (   hdt_term_(Hdt, shared, String),
+          String = O
+      ;   hdt_term_(Hdt, object, String),
+          post_object(O, String)
       )
-  ;   pre_object(Hdt, O, Var),
-      hdt_(Hdt, content, _, _, Var)
+  ;   pre_object(Hdt, O, String),
+      hdt_(Hdt, content, _, _, String)
   ->  true
   ).
 % predicate
 hdt_term_blob(Hdt, predicate, P) :-
   (   var(P)
-  ->  hdt_term_(Hdt, predicate, Var),
-      Var = P
+  ->  hdt_term_(Hdt, predicate, String),
+      String = P
   ;   hdt_(Hdt, content, _, P, _)
   ->  true
   ).
 % shared
 hdt_term_blob(Hdt, shared, Shared) :-
   (   var(Shared)
-  ->  hdt_term_(Hdt, shared, Var),
-      Var = Shared
+  ->  hdt_term_(Hdt, shared, String),
+      String = Shared
   ;   rdf_is_subject(Shared),
       hdt_(Hdt, content, Shared, _, _),
       hdt_(Hdt, content, _, _, Shared)
@@ -495,10 +495,10 @@ hdt_term_blob(Hdt, shared, Shared) :-
 % subject
 hdt_term_blob(Hdt, subject, S) :-
   (   var(S)
-  ->  (   hdt_term_(Hdt, shared, Var)
-      ;   hdt_term_(Hdt, subject, Var)
+  ->  (   hdt_term_(Hdt, shared, String)
+      ;   hdt_term_(Hdt, subject, String)
       ),
-      Var = S
+      String = S
   ;   hdt_(Hdt, content, S, _, _)
   ->  true
   ).
