@@ -294,7 +294,7 @@ typedef struct
 
 
 static int
-get_search_string(term_t t, char **s, unsigned flag, unsigned *flagp)
+get_hdt_string(term_t t, char **s, unsigned flag, unsigned *flagp)
 { if ( PL_is_variable(t) )
   { *s = (char*)"";
     *flagp |= flag;
@@ -320,9 +320,9 @@ PREDICATE_NONDET(hdt_, 5)
       ctx = &ctx_buf;
       if ( !get_hdt(A1, &symb) ||
            !PL_get_atom_ex(A2, &where) ||
-	   !get_search_string(A3, &s, S_S, &ctx->flags) ||
-	   !get_search_string(A4, &p, S_P, &ctx->flags) ||
-	   !get_search_string(A5, &o, S_O, &ctx->flags) )
+	   !get_hdt_string(A3, &s, S_S, &ctx->flags) ||
+	   !get_hdt_string(A4, &p, S_P, &ctx->flags) ||
+	   !get_hdt_string(A5, &o, S_O, &ctx->flags) )
 	return FALSE;
       try
       { if ( where == ATOM_content )
@@ -552,8 +552,7 @@ PREDICATE_NONDET(hdt_term_, 3)
 
 // hdt_term_rnd_(+Hdt, +Role, -Term)
 PREDICATE(hdt_term_rnd_, 3)
-{ IteratorUCharString *it;
-  hdt_wrapper *symb;
+{ hdt_wrapper *symb;
   atom_t role;
   if ( !get_hdt(A1, &symb) ||
        !PL_get_atom_ex(A2, &role) )
@@ -685,7 +684,7 @@ typedef struct
 
 
 static int
-get_search_id(term_t t, size_t *id, unsigned flag, unsigned *flagp)
+get_hdt_id(term_t t, size_t *id, unsigned flag, unsigned *flagp)
 { if ( PL_is_variable(t) )
   { *id = 0;
     *flagp |= flag;
@@ -717,9 +716,9 @@ PREDICATE_NONDET(hdt_id_, 4)
 
       ctx = &ctx_buf;
       if ( !get_hdt(A1, &symb) ||
-	   !get_search_id(A2, &s, S_S, &ctx->flags) ||
-	   !get_search_id(A3, &p, S_P, &ctx->flags) ||
-	   !get_search_id(A4, &o, S_O, &ctx->flags) )
+	   !get_hdt_id(A2, &s, S_S, &ctx->flags) ||
+	   !get_hdt_id(A3, &p, S_P, &ctx->flags) ||
+	   !get_hdt_id(A4, &o, S_O, &ctx->flags) )
 	return FALSE;
 
       try
@@ -769,9 +768,9 @@ PREDICATE(hdt_count_, 5)
   unsigned int flags {0};
   char *s, *p, *o;
   if ( !get_hdt(A1, &symb) ||
-       !get_search_string(A2, &s, S_S, &flags) ||
-       !get_search_string(A3, &p, S_P, &flags) ||
-       !get_search_string(A4, &o, S_O, &flags) )
+       !get_hdt_string(A2, &s, S_S, &flags) ||
+       !get_hdt_string(A3, &p, S_P, &flags) ||
+       !get_hdt_string(A4, &o, S_O, &flags) )
     return FALSE;
   try {
     IteratorTripleString *it = symb->hdt->search(s,p,o);
@@ -788,9 +787,9 @@ PREDICATE(hdt_count_id_, 5)
   unsigned int flags {0};
   size_t s, p, o;
   if ( !get_hdt(A1, &symb) ||
-       !get_search_id(A2, &s, S_S, &flags) ||
-       !get_search_id(A3, &p, S_P, &flags) ||
-       !get_search_id(A4, &o, S_O, &flags) )
+       !get_hdt_id(A2, &s, S_S, &flags) ||
+       !get_hdt_id(A3, &p, S_P, &flags) ||
+       !get_hdt_id(A4, &o, S_O, &flags) )
     return FALSE;
   try {
     TripleID t(s,p,o);
@@ -802,16 +801,48 @@ PREDICATE(hdt_count_id_, 5)
 }
 
 
-// hdt_rnd_id_(+HDT, ?S, ?P, ?O)
+// hdt_rnd_(+HDT, ?S, ?P, ?O)
+PREDICATE(hdt_rnd_, 4)
+{
+  hdt_wrapper *symb;
+  unsigned int flags=0;
+  char *s, *p, *o;
+  if ( !get_hdt(A1, &symb) ||
+       !get_hdt_string(A2, &s, S_S, &flags) ||
+       !get_hdt_string(A3, &p, S_P, &flags) ||
+       !get_hdt_string(A4, &o, S_O, &flags) )
+    return FALSE;
+  try {
+    IteratorTripleString *it = symb->hdt->search(s,p,o);
+    size_t max = it->estimatedNumResults() - 1;
+    uniform_int_distribution<unsigned int> distribution(0, max);
+    unsigned int index = distribution(randomGenerator);
+    Sprintf("%d from 0..%d\n", index, max);
+    it->skip(index);
+    if (it->hasNext()) {
+      TripleString *t = it->next();
+      bool rc =
+        ( (!(flags&S_S) || unify_string(A2, t->getSubject().c_str())) &&
+          (!(flags&S_P) || unify_string(A3, t->getPredicate().c_str())) &&
+          (!(flags&S_O) || unify_string(A4, t->getObject().c_str())) );
+      delete it;
+      return rc;
+    }
+  } CATCH_HDT;
+  return FALSE;
+}
+
+
+// hdt_rnd_id_(+HDT, ?SId, ?PId, ?OId)
 PREDICATE(hdt_rnd_id_, 4)
 {
   hdt_wrapper *symb;
   unsigned int flags=0;
   size_t s, p, o;
   if ( !get_hdt(A1, &symb) ||
-       !get_search_id(A2, &s, S_S, &flags) ||
-       !get_search_id(A3, &p, S_P, &flags) ||
-       !get_search_id(A4, &o, S_O, &flags) )
+       !get_hdt_id(A2, &s, S_S, &flags) ||
+       !get_hdt_id(A3, &p, S_P, &flags) ||
+       !get_hdt_id(A4, &o, S_O, &flags) )
     return FALSE;
   try {
     TripleID pattern(s, p, o);

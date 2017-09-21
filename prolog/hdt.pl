@@ -201,9 +201,7 @@ hdt_graph(G) :-
 % @throws instantiation_error
 
 hdt_graph(Hdt, G) :-
-  with_mutex(hdt_graph_, (
-    hdt_graph_(Hdt, G)
-  )), !.
+  with_mutex(hdt_graph_, hdt_graph_(Hdt, G)), !.
 hdt_graph(_, G) :-
   ground(G), !,
   existence_error(hdt_graph, G).
@@ -331,7 +329,9 @@ hdt_count(S, P, O, Count) :-
 
 hdt_count(S, P, O, Count, Hdt0) :-
   hdt_blob(Hdt0, Hdt),
-  hdt_count_(Hdt, S, P, O, Count).
+  pre_object(Hdt, O, Atom),
+  hdt_count_(Hdt, S, P, Atom, Count),
+  post_object(Hdt, O, Atom).
 
 
 
@@ -378,11 +378,9 @@ hdt_rnd(S, P, O) :-
 
 hdt_rnd(S, P, O, Hdt0) :-
   hdt_blob(Hdt0, Hdt),
-  Triple = t(S,P,O),
-  TripleId = t(SId,PId,OId),
-  pre_triple(Hdt, Triple, TripleId),
-  hdt_rnd_id(SId, PId, OId, Hdt),
-  post_triple(Hdt, Triple, TripleId).
+  pre_object(Hdt, O, Atom),
+  hdt_rnd_(Hdt, S, P, Atom),
+  post_object(Hdt, O, Atom).
 
 
 
@@ -438,29 +436,30 @@ hdt_term_blob(Hdt, name, Name) :-
 % node
 hdt_term_blob(Hdt, node, Node) :-
   (   var(Node)
-  ->  (   hdt_term_(Hdt, shared, Atom),
-          Atom = Node
-      ;   hdt_term_(Hdt, subject, Atom),
-          Atom = Node
-      ;   hdt_term_(Hdt, object, Atom),
+  ->  (   hdt_term_(Hdt, shared, Node)
+      ;   hdt_term_(Hdt, subject, Node)
+      ;   pre_object(Hdt, Node, Atom),
+          hdt_term_(Hdt, object, Atom),
           post_object(Node, Atom)
       )
   ;   hdt_(Hdt, content, Node, _, _)
   ->  true
   ;   pre_object(Hdt, Node, Atom),
-      hdt_(Hdt, content, _, _, Atom)
+      hdt_(Hdt, content, _, _, Atom),
+      post_object(Node, Atom)
   ->  true
   ).
 % object
 hdt_term_blob(Hdt, object, O) :-
   (   var(O)
-  ->  (   hdt_term_(Hdt, shared, Atom),
-          Atom = O
-      ;   hdt_term_(Hdt, object, Atom),
+  ->  (   hdt_term_(Hdt, shared, O),
+      ;   pre_object(Hdt, O, Atom),
+          hdt_term_(Hdt, object, Atom),
           post_object(O, Atom)
       )
   ;   pre_object(Hdt, O, Atom),
-      hdt_(Hdt, content, _, _, Atom)
+      hdt_(Hdt, content, _, _, Atom),
+      post_object(Hdt, O, Atom)
   ->  true
   ).
 % predicate
@@ -474,20 +473,17 @@ hdt_term_blob(Hdt, predicate, P) :-
 % shared
 hdt_term_blob(Hdt, shared, Shared) :-
   (   var(Shared)
-  ->  hdt_term_(Hdt, shared, Atom),
-      Atom = Shared
-  ;   rdf_is_subject(Shared),
-      hdt_(Hdt, content, Shared, _, _),
+  ->  hdt_term_(Hdt, shared, Shared)
+  ;   hdt_(Hdt, content, Shared, _, _),
       hdt_(Hdt, content, _, _, Shared)
   ->  true
   ).
 % subject
 hdt_term_blob(Hdt, subject, S) :-
   (   var(S)
-  ->  (   hdt_term_(Hdt, shared, Atom)
-      ;   hdt_term_(Hdt, subject, Atom)
-      ),
-      Atom = S
+  ->  (   hdt_term_(Hdt, shared, S)
+      ;   hdt_term_(Hdt, subject, S)
+      )
   ;   hdt_(Hdt, content, S, _, _)
   ->  true
   ).
@@ -519,8 +515,7 @@ hdt_term_count_blob(Hdt, object, Count) :-
 hdt_term_count_blob(Hdt, predicate, Count) :-
   hdt_header(_, '<http://rdfs.org/ns/void#properties>', Count^^_, Hdt).
 hdt_term_count_blob(Hdt, shared, Count) :-
-  hdt_header(_, '<http://purl.org/HDT/hdt#dictionarynumSharedSubjectObject>',
-             Count^^_, Hdt).
+  hdt_header(_, '<http://purl.org/HDT/hdt#dictionarynumSharedSubjectObject>', Count^^_, Hdt).
 hdt_term_count_blob(Hdt, subject, Count) :-
   hdt_header(_, '<http://rdfs.org/ns/void#distinctSubjects>', Count^^_, Hdt).
 
@@ -744,19 +739,6 @@ post_literal(Lit) -->
 
 
 
-%! post_triple(+Hdt:blob, ?Triple:compound, +TripleId:compound) is det.
-
-post_triple(Hdt, t(S,P,O), t(SId,PId,OId)) :-
-  post_iri_id(Hdt, subject, S, SId),
-  post_iri_id(Hdt, predicate, P, PId),
-  (   ground(O)
-  ->  true
-  ;   hdt_dict_(Hdt, object, Atom, OId),
-      post_object(O, Atom)
-  ).
-
-
-
 %! pre_object(+Hdt:blob, ?O, -Atom) is det.
 %
 % This helper predicate implements the feature that literals can be
@@ -784,19 +766,6 @@ pre_object(Hdt, Val^^D, Atom) :- !,
   ).
 pre_object(_, NonLiteral, NonLiteral) :-
   must_be(atom, NonLiteral).
-
-
-
-%! pre_triple(+Hdt:blob,  ?Triple:compound, -TripleId:compound) is det.
-
-pre_triple(Hdt, t(S,P,O), t(SId,PId,OId)) :-
-  pre_iri_id(Hdt, subject, S, SId),
-  pre_iri_id(Hdt, predicate, P, PId),
-  (   ground(O)
-  ->  pre_object(Hdt, O, Atom),
-      hdt_dict_(Hdt, object, Atom, OId)
-  ;   true
-  ).
 
 
 
