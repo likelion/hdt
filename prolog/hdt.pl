@@ -261,10 +261,8 @@ hdt_open(HdtFile) :-
 
 
 hdt_open(HdtFile, Options) :-
-  (   option(graph(G), Options)
-  ->  true
-  ;   uri_file_name(G, HdtFile)
-  ),
+  ignore(option(graph(G), Options)),
+  (var(G) -> uri_file_name(G, HdtFile) ; true),
   hdt_open_(HdtFile, Hdt, Options),
   hdt_register_graph_(Hdt, G),
   ignore(option(handle(Hdt), Options)).
