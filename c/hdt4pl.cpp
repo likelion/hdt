@@ -431,24 +431,20 @@ PREDICATE_NONDET(hdt_, 5)
 // hdt_prefix_(+HDT, +Role, +Prefix, -Term)
 PREDICATE_NONDET(hdt_prefix_, 4)
 { IteratorUCharString *it;
-
   switch(PL_foreign_control(handle))
   { case PL_FIRST_CALL:
     { hdt_wrapper *symb;
       TripleComponentRole role;
       char *prefix;
       size_t len;
-
       if ( !get_hdt(A1, &symb) ||
            !get_triple_role(A2, &role) ||
            !PL_get_nchars(A3, &len, &prefix,
                           CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8) )
         return FALSE;
-
       try
       { it = symb->hdt->getDictionary()->getSuggestions(prefix, role);
       } CATCH_HDT;
-
       goto next;
     }
     case PL_REDO:
@@ -457,7 +453,6 @@ PREDICATE_NONDET(hdt_prefix_, 4)
       if ( it->hasNext() )
       { unsigned char *s = it->next();
 	int rc;
-
 	rc = PL_unify_chars(A4, PL_ATOM|REP_UTF8, (size_t)-1, (const char*)s);
 	it->freeStr(s);
 	if ( rc )
@@ -469,6 +464,52 @@ PREDICATE_NONDET(hdt_prefix_, 4)
       it = (IteratorUCharString*)PL_foreign_context_address(handle);
       delete it;
       return TRUE;
+  }
+}
+
+
+// hdt_prefix_id_(+Hdt, +Role, +Prefix, -Id)
+PREDICATE_NONDET(hdt_term_id_, 3)
+{ IteratorUInt *it;
+  switch(PL_foreign_control(handle)) {
+  case PL_FIRST_CALL:
+    {
+      hdt_wrapper *symb;
+      TripleComponentRole role;
+      char *prefix;
+      size_t len;
+      if ( !get_hdt(A1, &symb) ||
+           !get_triple_role(A2, &role) ||
+           !PL_get_nchars(A3, &len, &prefix,
+                          CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8) )
+        return FALSE;
+      try {
+        it = symb->hdt->getDictionary()->getIDSuggestions(prefix, role);
+      } CATCH_HDT;
+      goto next;
+    }
+  case PL_REDO:
+    {
+      it = (IteratorUInt*)PL_foreign_context_address(handle);
+    }
+  next:
+    {
+      if ( it->hasNext() ) {
+        unsigned int id = it->next();
+        int rc;
+        rc = PL_unify_integer(A4, id);
+        if ( rc )
+          PL_retry_address((void*) it);
+      }
+    }
+    delete it;
+    return FALSE;
+  case PL_PRUNED:
+    {
+      it = (IteratorUInt*) PL_foreign_context_address(handle);
+      delete it;
+      return TRUE;
+    }
   }
 }
 
@@ -564,33 +605,6 @@ PREDICATE_NONDET(hdt_term_, 3)
       return TRUE;
   }
 }
-
-
-/*// hdt_term_id_(+Hdt, +Role, -Term)
-PREDICATE(hdt_term_id_, 3)
-{ hdt_wrapper *symb;
-  atom_t role;
-  if ( !get_hdt(A1, &symb) ||
-       !PL_get_atom_ex(A2, &role) )
-    return FALSE;
-  try {
-    Dictionary *dict = symb->hdt->getDictionary();
-    if ( role == ATOM_object )
-      long id = BETWEEN((long)dict->getNshared()+1,
-                        (long)dict->getMaxObjectID());
-    else if ( role == ATOM_subject )
-      long id = BETWEEN((long)dict->getNshared()+1,
-                        (long)dict->getMaxSubjectID());
-    else if ( role == ATOM_predicate )
-      long id = BETWEEN(1,(long)dict->getNpredicates());
-    else if ( role == ATOM_shared )
-      long id = BETWEEN(1, (long)dict->getNshared());
-    else
-      return PL_domain_error("hdt_role", A2);
-    return PL_unify_integer(A3, id);
-  } CATCH_HDT;
-  return FALSE;
-}*/
 
 
 // hdt_term_rnd_(+Hdt, +Role, -Term)
