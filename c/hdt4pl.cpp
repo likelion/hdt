@@ -408,6 +408,7 @@ PREDICATE_NONDET(hdt_prefix_, 4)
       delete it;
       return TRUE;
   }
+  return FALSE;
 }
 
 
@@ -454,6 +455,7 @@ PREDICATE_NONDET(hdt_prefix_id_, 4)
       return TRUE;
     }
   }
+  return FALSE;
 }
 
 
@@ -547,6 +549,7 @@ PREDICATE_NONDET(hdt_term_, 3)
       delete it;
       return TRUE;
   }
+  return FALSE;
 }
 
 
