@@ -1,9 +1,9 @@
-*.o
 *~
-*.so
 *.dylib
-.gdbinit
-buildenv.sh
 *.hdt
 *.hdt.index*
 *.nt
+*.o
+*.so
+.gdbinit
+buildenv.sh
