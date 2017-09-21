@@ -307,7 +307,7 @@ hdt(S, P, O) :-
 
 hdt(S, P, O, Hdt0) :-
   hdt_blob(Hdt0, Hdt),
-  (var(S) -> true ; \+ rdf_is_literal(S)),
+  %(var(S) -> true ; \+ rdf_is_literal(S)),
   pre_object(Hdt, O, Atom),
   hdt_(Hdt, content, S, P, Atom),
   post_object(O, Atom).
@@ -510,13 +510,17 @@ hdt_term_count_blob(Hdt, node, Count) :-
   maplist(hdt_term_count_blob(Hdt), [object,shared,subject], Counts),
   sum_list(Counts, Count).
 hdt_term_count_blob(Hdt, object, Count) :-
-  hdt_header(_, '<http://rdfs.org/ns/void#distinctObjects>', Count^^_, Hdt).
+  hdt_header_(_, '<http://rdfs.org/ns/void#distinctObjects>', Count0, Hdt),
+  Count0 = Count^^_.
 hdt_term_count_blob(Hdt, predicate, Count) :-
-  hdt_header(_, '<http://rdfs.org/ns/void#properties>', Count^^_, Hdt).
+  hdt_header_(_, '<http://rdfs.org/ns/void#properties>', Count0, Hdt),
+  Count0 = Count^^_.
 hdt_term_count_blob(Hdt, shared, Count) :-
-  hdt_header(_, '<http://purl.org/HDT/hdt#dictionarynumSharedSubjectObject>', Count^^_, Hdt).
+  hdt_header_(_, '<http://purl.org/HDT/hdt#dictionarynumSharedSubjectObject>', Count0, Hdt),
+  Count0 = Count^^_.
 hdt_term_count_blob(Hdt, subject, Count) :-
-  hdt_header(_, '<http://rdfs.org/ns/void#distinctSubjects>', Count^^_, Hdt).
+  hdt_header_(_, '<http://rdfs.org/ns/void#distinctSubjects>', Count0, Hdt),
+  Count0 = Count^^_.
 
 
 
@@ -618,12 +622,17 @@ hdt_header(S, P, O) :-
 
 hdt_header(S, P, O, Hdt0) :-
   hdt_blob(Hdt0, Hdt),
+  hdt_header_(S, P, O, Hdt).
+
+hdt_header_(S, P, O, Hdt) :-
+  pre_object(Hdt, O, Atom),
   hdt_(Hdt, header, S, P, Atom),
   header_object(Atom, O).
 
-header_object(Atom, O) :-
-  string(Atom), !,
-  header_untyped_object(Atom, O).
+header_object(Atom1, O) :-
+  atom_concat('"', Atom2, Atom1),
+  atom_concat(Atom3, '"', Atom2),
+  header_untyped_object(Atom3, O).
 header_object(O, O).
 
 header_untyped_object(Atom, O) :-
