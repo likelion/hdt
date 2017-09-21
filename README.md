@@ -1,17 +1,22 @@
 # Header Dictionary Triples (HDT) for SWI-Prolog
 
-This  repository  is  work  in  progress   to  provide  access  to  [HDT
-files](http://www.rdfhdt.org/)  from  SWI-Prolog  based    on  the  [C++
-library](https://github.com/rdfhdt/hdt-cpp.git) for these files.
+This repository provides a [Prolog API](http://www.swipl-prolog.org/)
+to the [Header Dictionary Triples (HDT)](http://www.rdfhdt.org/)
+storage format for RDF data.  This repository uses [the C++
+implementation of HDT](https://github.com/rdfhdt/hdt-cpp.git).
 
-HDT files form a natural addition to SWI-Prolog's memory based RDF store
-to access large amounts of static background knowledge without enlarging
-the memory footprint.
+HDT provides a complementary apprach to SWI-Prolog's memory based RDF
+store.  It allows large amounts of static background knowledge to be
+accessed without enlarging the memory footprint.
 
-This repository is organised as a SWI-Prolog _pack_.  To install it,
-perform the steps below.  Installation and usage is tested on Ubuntu
-and Fedora.  This should work on most Unix-like machines.
-Installation on Windows requires more creativity though.
+This repository is organised as [a SWI-Prolog
+_pack_](http://www.swi-prolog.org/pack/list).  To install it, perform
+the steps below.  Installation and usage is tested on
+[Ubuntu](https://www.ubuntu.com/) and
+[Fedora](https://getfedora.org/).  This should work on most Unix-like
+machines.  Installation on
+[Windows](https://www.microsoft.com/en-us/windows/) requires more
+creativity.
 
 
 
@@ -44,8 +49,8 @@ curl -s http://download.drobilla.net/serd-0.26.0.tar.bz2 | tar -xj && \
 
 ## Usage
 
-If the installation went well, you can load the HDT library with the following command:
-
+If the installation went well, you can load the HDT library with the
+following command:
 
 ```bash
 ?- [library(hdt)].
