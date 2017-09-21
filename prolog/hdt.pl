@@ -412,21 +412,58 @@ hdt_term(Role, Name) :-
 %! hdt_term(+Role, -Term, ?G) is nondet.
 %
 %  @arg Role is either of the following term types:
-%  - bnode
-%  - iri
-%  - literal
-%  - name
-%  or either of the following term positions:
-%  - node
-%  - object
-%  - predicate
-%  - shared
-%  - subject
+%
+%    * bnode
+%
+%      Terms that are blank nodes.
+%
+%    * iri
+%
+%      Terms that are IRIs.
+%
+%    * literal
+%
+%      Terms that are literals.
+%
+%    * name
+%
+%      Terms that are IRIs or literals.
+%
+%    * node
+%
+%      Terms that appear in the subject or object position.
+%
+%    * object
+%
+%      Terms that appear in the object position.
+%
+%    * predicate
+%
+%      Terms that appear in the predicate position.
+%
+%    * shared
+%
+%      Terms that appear in the subject and object position.
+%
+%    * sink
+%
+%      Terms that only appear in the object position.
+%
+%    * source
+%
+%      Terms that only appear in the subject position.
+%
+%    * subject
+%
+%      Terms that appear in the subject position.
 
 hdt_term(Role, Term, Hdt0) :-
   hdt_blob(Hdt0, Hdt),
   hdt_term_blob(Hdt, Role, Term).
 
+% bnode
+% iri
+% literal
 % name
 hdt_term_blob(Hdt, name, Name) :-
   hdt_term_blob(Hdt, iri, Name).
@@ -434,40 +471,21 @@ hdt_term_blob(Hdt, name, Name) :-
   hdt_term_blob(Hdt, literal, Name).
 % node
 hdt_term_blob(Hdt, node, Node) :-
-  (   var(Node)
-  ->  (   hdt_term_(Hdt, shared, Node)
-      ;   hdt_term_(Hdt, subject, Node)
-      ;   pre_object(Hdt, Node, Atom),
-          hdt_term_(Hdt, object, Atom),
-          post_object(Node, Atom)
-      )
-  ;   hdt_(Hdt, content, Node, _, _)
-  ->  true
-  ;   pre_object(Hdt, Node, Atom),
-      hdt_(Hdt, content, _, _, Atom),
-      post_object(Node, Atom)
-  ->  true
-  ).
+  hdt_term_blob(Hdt, shared, Node).
+hdt_term_blob(Hdt, node, Node) :-
+  hdt_term_blob(Hdt, source, Node).
+hdt_term_blob(Hdt, node, Node) :-
+  hdt_term_blob(Hdt, sink, Node).
 % object
 hdt_term_blob(Hdt, object, O) :-
-  (   var(O)
-  ->  (   hdt_term_(Hdt, shared, O)
-      ;   pre_object(Hdt, O, Atom),
-          hdt_term_(Hdt, object, Atom),
-          post_object(O, Atom)
-      )
-  ;   pre_object(Hdt, O, Atom),
-      hdt_(Hdt, content, _, _, Atom),
-      post_object(O, Atom)
-  ->  true
-  ).
+  hdt_term_blob(Hdt, shared, O).
+hdt_term_blob(Hdt, object, O) :-
+  hdt_term_blob(Hdt, sink, O).
 % predicate
 hdt_term_blob(Hdt, predicate, P) :-
   (   var(P)
-  ->  hdt_term_(Hdt, predicate, Atom),
-      Atom = P
+  ->  hdt_term_(Hdt, predicate, P)
   ;   hdt_(Hdt, content, _, P, _)
-  ->  true
   ).
 % shared
 hdt_term_blob(Hdt, shared, Shared) :-
@@ -475,17 +493,26 @@ hdt_term_blob(Hdt, shared, Shared) :-
   ->  hdt_term_(Hdt, shared, Shared)
   ;   hdt_(Hdt, content, Shared, _, _),
       hdt_(Hdt, content, _, _, Shared)
-  ->  true
+  ).
+% sink
+hdt_term_blob(Hdt, sink, Sink) :-
+  pre_object(Hdt, Sink, Atom),
+  (   var(Sink)
+  ->  hdt_term_(Hdt, object, Atom)
+  ;   hdt_(Hdt, content, _, _, Atom)
+  ),
+  post_object(Sink, Atom).
+% source
+hdt_term_blob(Hdt, source, Source) :-
+  (   var(Source)
+  ->  hdt_term_(Hdt, subject, Source)
+  ;   hdt_(Hdt, content, Source, _, _)
   ).
 % subject
 hdt_term_blob(Hdt, subject, S) :-
-  (   var(S)
-  ->  (   hdt_term_(Hdt, shared, S)
-      ;   hdt_term_(Hdt, subject, S)
-      )
-  ;   hdt_(Hdt, content, S, _, _)
-  ->  true
-  ).
+  hdt_term_blob(Hdt, source, S).
+hdt_term_blob(Hdt, subject, S) :-
+  hdt_term_blob(Hdt, shared, S).
 
 
 
