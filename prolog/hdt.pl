@@ -224,16 +224,16 @@ hdt_create(RdfFile) :-
   hdt_create(RdfFile, []).
 
 
-hdt_create(RdfFile, Options1) :-
-  (   select_option(hdt_file(HdtFile), Options1, Options2)
-  ->  true
-  ;   directory_file_path(Dir, RdfLocal, RdfFile),
+hdt_create(RdfFile, Options) :-
+  ignore(option(hdt_file(HdtFile), Options)),
+  (   var(HdtFile)
+  ->  directory_file_path(Dir, RdfLocal, RdfFile),
       atomic_list_concat([Base|_], ., RdfLocal),
       file_name_extension(Base, hdt, HdtLocal),
-      directory_file_path(Dir, HdtLocal, HdtFile),
-      Options2 = Options1
+      directory_file_path(Dir, HdtLocal, HdtFile)
+  ;   true
   ),
-  hdt_create_(HdtFile, RdfFile, Options2).
+  hdt_create_(HdtFile, RdfFile, Options).
 
 
 
