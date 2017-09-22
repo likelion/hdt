@@ -198,7 +198,7 @@ error:has_type(rdf_term, Term) :-
 hdt_close(G) :-
   with_mutex(hdt_graph_, (
     ((atom(G) ; var(G)) -> hdt_graph_(Hdt, G) ; Hdt = G),
-    hdt_close(hdt(Hdt)),
+    hdt_close_(Hdt),
     retractall(hdt_graph_(Hdt,_))
   )).
 
