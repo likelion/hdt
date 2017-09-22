@@ -268,13 +268,13 @@ hdt_graph(Hdt, G) :-
 %   How the file is accessed.  On of `map` (map the file into memory,
 %   default) or `load` (load the content of the file).
 %
-%   * graph(+atom)
+%   * graph(?atom)
 %
 %   An alias by which one can refer to the opaque Hdt handle.  This
 %   alias acts as a name for the graph, or set of triples, that is
 %   contained in the HDT file.
 %
-%   By default this is the URI denoting HdtFile.
+%   By default this is the URI version of the HdtFile.
 %
 %   * handle(-blob)
 %
