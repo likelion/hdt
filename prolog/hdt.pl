@@ -843,6 +843,7 @@ post_literal(Lit) -->
         atom_codes(LTag, Codes2),
         rdf11:post_object(Lit, literal(lang(LTag,Lex)))
       }
+  ;   {rdf_global_object(Lex^^xsd:string, Lit)}
   ).
 
 
