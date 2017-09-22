@@ -45,6 +45,7 @@ using namespace std;
 using namespace hdt;
 
 static void deleteHDT(HDT *hdt);
+static int get_dict_section(term_t t, DictionarySection *section);
 static int get_triple_role(term_t t, TripleComponentRole *role);
 static mt19937 randomGenerator(time(0));
 static int unify_string(term_t t, const char *s);
@@ -84,6 +85,8 @@ static atom_t ATOM_load;
 static atom_t ATOM_header;
 static atom_t ATOM_content;
 static atom_t ATOM_base_uri;
+static atom_t ATOM_source;
+static atom_t ATOM_sink;
 
 static functor_t FUNCTOR_rdftype2;
 static functor_t FUNCTOR_rdflang2;
@@ -188,6 +191,8 @@ install_hdt4pl(void)
   MKATOM(content);
   MKATOM(header);
   MKATOM(base_uri);
+  MKATOM(source);
+  MKATOM(sink);
 
   FUNCTOR_rdftype2 = PL_new_functor(PL_new_atom("^^"), 2);
   FUNCTOR_rdflang2 = PL_new_functor(PL_new_atom("@"), 2);
@@ -512,19 +517,19 @@ PREDICATE_NONDET(hdt_term_, 3)
   switch(PL_foreign_control(handle))
   { case PL_FIRST_CALL:
     { hdt_wrapper *symb;
-      atom_t role;
+      DictionarySection section;
       if ( !get_hdt(A1, &symb) ||
-	   !PL_get_atom_ex(A2, &role) )
+	   !get_dict_section(A2, &section) )
 	return FALSE;
       try
       { Dictionary *dict = symb->hdt->getDictionary();
-	if ( role == ATOM_subject )
+	if ( section == NOT_SHARED_SUBJECT )
 	  it = dict->getSubjects();
-	else if ( role == ATOM_predicate )
+	else if ( section == NOT_SHARED_PREDICATE )
 	  it = dict->getPredicates();
-	else if ( role == ATOM_shared )
+	else if ( section == SHARED_SUBJECT )
 	  it = dict->getShared();
-	else if ( role == ATOM_object )
+	else if ( section == NOT_SHARED_OBJECT )
 	  it = dict->getObjects();
 	else
 	  return PL_domain_error("hdt_term", A2);
@@ -555,38 +560,40 @@ PREDICATE_NONDET(hdt_term_, 3)
 
 // hdt_term_rnd_(+Hdt, +Role, -Term)
 PREDICATE(hdt_term_rnd_, 3)
-{ hdt_wrapper *symb;
-  atom_t role;
+{
+  hdt_wrapper *symb;
+  DictionarySection section;
   if ( !get_hdt(A1, &symb) ||
-       !PL_get_atom_ex(A2, &role) )
+       !get_dict_section(A2, &section) ) {
     return FALSE;
+  }
   try {
     Dictionary *dict = symb->hdt->getDictionary();
     long min, max;
-    if ( role == ATOM_object ) {
+    if ( section == NOT_SHARED_OBJECT ) {
       min = (long) dict->getNshared() + 1;
       max = (long) dict->getMaxObjectID();
-    } else if ( role == ATOM_subject ) {
+    } else if ( section == NOT_SHARED_SUBJECT ) {
       min = (long) dict->getNshared() + 1;
       max = (long) dict->getMaxSubjectID();
-    } else if ( role == ATOM_predicate ) {
+    } else if ( section == NOT_SHARED_PREDICATE ) {
       min = 1;
       max = (long) dict->getNpredicates();
-    } else if ( role == ATOM_shared ) {
+    } else if ( section == SHARED_SUBJECT ) {
       min = 1;
       max = (long) dict->getNshared();
-    } else {
-      return PL_domain_error("hdt_role", A2);
     }
     uniform_int_distribution<unsigned int> distribution(min, max);
     unsigned int index = distribution(randomGenerator);
     Sprintf("%d from 0..%d\n", index, max);
-    TripleComponentRole dict_role;
-    if ( !get_triple_role(role, &dict_role))
+    TripleComponentRole role;
+    if ( !get_triple_role(section, &role)) {
       return FALSE;
-    std::string str = dict->idToString((size_t)(long)A4, dict_role);
-    if ( !str.empty() )
+    }
+    std::string str = dict->idToString((size_t)(long)A4, role);
+    if ( !str.empty() ) {
       return ( A3 = str.c_str() );
+    }
   } CATCH_HDT;
   return FALSE;
 }
@@ -595,27 +602,26 @@ PREDICATE(hdt_term_rnd_, 3)
 // hdt_term_rnd_id_(+Hdt, +Role, -Id)
 PREDICATE(hdt_term_rnd_id_, 3)
 { hdt_wrapper *symb;
-  TripleComponentRole role;
+  DictionarySection section;
   if ( !get_hdt(A1, &symb) ||
-       !get_triple_role(A2, &role) )
+       !get_dict_section(A2, &section) ) {
     return FALSE;
+  }
   try {
     Dictionary *dict = symb->hdt->getDictionary();
     long min, max;
-    if ( role == ATOM_object ) {
+    if ( section == NOT_SHARED_OBJECT ) {
       min = (long) dict->getNshared() + 1;
       max = (long) dict->getMaxObjectID();
-    } else if ( role == ATOM_subject ) {
+    } else if ( section == NOT_SHARED_SUBJECT ) {
       min = (long) dict->getNshared() + 1;
       max = (long) dict->getMaxSubjectID();
-    } else if ( role == ATOM_predicate ) {
+    } else if ( section == NOT_SHARED_PREDICATE ) {
       min = 1;
       max = (long) dict->getNpredicates();
-    } else if ( role == ATOM_shared ) {
+    } else if ( section == SHARED_SUBJECT ) {
       min = 1;
       max = (long) dict->getNshared();
-    } else {
-      return PL_domain_error("hdt_role", A2);
     }
     uniform_int_distribution<unsigned int> distribution(min, max);
     unsigned int index = distribution(randomGenerator);
@@ -626,22 +632,46 @@ PREDICATE(hdt_term_rnd_id_, 3)
 }
 
 
-static int
-get_triple_role(term_t t, TripleComponentRole *role)
-{ atom_t name;
-  if ( !PL_get_atom_ex(t, &name) )
+static int get_triple_role(term_t t, TripleComponentRole *role)
+{
+  atom_t name;
+  if ( !PL_get_atom_ex(t, &name) ) {
     return FALSE;
-  if ( name == ATOM_subject )
-    *role = SUBJECT;
-  else if ( name == ATOM_predicate )
+  }
+  if ( name == ATOM_predicate ) {
     *role = PREDICATE;
-  else if ( name == ATOM_object )
-    *role = OBJECT;
-  else if ( name == ATOM_shared )
+  } else if ( name == ATOM_shared ) {
     // We can pick either subject or object here.
     *role = SUBJECT;
-  else
-    return PL_domain_error("hdt_role", t);
+  } else if ( name == ATOM_sink ) {
+    *role = OBJECT;
+  } else if ( name == ATOM_source ) {
+    *role = SUBJECT;
+  } else {
+    return PL_domain_error("triple_role", t);
+  }
+  return TRUE;
+}
+
+
+static int get_dict_section(term_t t, DictionarySection *section)
+{
+  atom_t name;
+  if ( !PL_get_atom_ex(t, &name) ) {
+    return FALSE;
+  }
+  if ( name == ATOM_predicate ) {
+    *section = NOT_SHARED_PREDICATE;
+  } else if ( name == ATOM_shared ) {
+    // We can pick either `SHARED_SUBJECT' or `SHARED_OBJECT' here.
+    *section = SHARED_SUBJECT;
+  } else if ( name == ATOM_sink ) {
+    *section = NOT_SHARED_OBJECT;
+  } else if ( name == ATOM_source ) {
+    *section = NOT_SHARED_SUBJECT;
+  } else {
+    return PL_domain_error("dict_section", t);
+  }
   return TRUE;
 }
 

@@ -1,4 +1,4 @@
-¥# -*- mode: org; -*-
+# -*- mode: org; -*-
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://www.pirilampo.org/styles/readtheorg/css/htmlize.css"/>
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="http://www.pirilampo.org/styles/readtheorg/css/readtheorg.css"/>
 #+HTML_HEAD: <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
@@ -184,6 +184,35 @@ hdt_property/2, % +Hdt, -Property
 #+END_SRC
 
 These will not be changed in the new API.
+
+* Identifiers
+
+term | atom | positive_integer
+
+HDT introduces new identifiers to denote RDF resources.  These
+identifiers are positive integers that are mapped to RDF terms in the
+following way:
+
+  - The Nth predicate is denoted by N.
+  - The Nth shared node is denoted by N.
+  - The Nth sink node is denoted by M+N, where M is the number of
+    shared nodes.
+  - The Nth source node is denoted by M+N, where M is the number of
+    shared nodes.
+
+This means that one number can denote up to three terms, and that one
+term can be denoted by up to two positive integers.
+
+In order to disambiguate these identifiers, we need to store the
+positionality (called ‘Role’) together with the positive integer:
+
+  - (Role ⨯ N)
+  - Role := {subject,predicate,object}
+  - subject := shared + sink
+  - object := shared + source
+
+The identification space contains two nodes and predicates.
+Since the overlap between
 
 * TO-DO list for ~hdt-cpp~
 ** DONE test ~goTo~ function, used by random functions
