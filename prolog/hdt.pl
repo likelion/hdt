@@ -632,6 +632,7 @@ hdt_term_id(Id) :-
 %! hdt_term_id(-Id:hdt_id, ?G:hdt_graph) is nondet.
 
 hdt_term_id(id(Role,Id), Hdt) :-
+  % O: reimplement using S,P,O, and SO offsets
   hdt_term(Role, Term, Hdt),
   hdt_dict(Term, id(Role,Id), Hdt).
 
