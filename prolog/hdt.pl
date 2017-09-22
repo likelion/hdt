@@ -228,7 +228,9 @@ hdt_create(RdfFile, Options) :-
   ignore(option(hdt_file(HdtFile), Options)),
   (   var(HdtFile)
   ->  directory_file_path(Dir, RdfLocal, RdfFile),
-      atomic_list_concat([Base|_], ., RdfLocal),
+      atomic_list_concat(Segments1, ., RdfLocal),
+      append(Segments2, [_], Segments1),
+      atomic_list_concat(Segments2, ., Base),
       file_name_extension(Base, hdt, HdtLocal),
       directory_file_path(Dir, HdtLocal, HdtFile)
   ;   true
@@ -297,8 +299,11 @@ hdt_open(HdtFile) :-
 hdt_open(HdtFile, Options) :-
   ignore(option(graph(G), Options)),
   (var(G) -> uri_file_name(G, HdtFile) ; true),
-  hdt_open_(HdtFile, Hdt, Options),
-  register_graph_(Hdt, G),
+  (   hdt_graph_(Hdt, G)
+  ->  print_message(informational, hdt_already_open(HdtFile,G))
+  ;   hdt_open_(HdtFile, Hdt, Options),
+      register_graph_(Hdt, G)
+  ),
   ignore(option(handle(Hdt), Options)).
 
 
