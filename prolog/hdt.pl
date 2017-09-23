@@ -416,14 +416,14 @@ hdt_id(SId, PId, OId, G) :-
 
 
 
-%! hdt_rnd(?S:rdf_subject, ?P:rdf_predicate, ?O:rdf_object) is nondet.
+%! hdt_rnd(?S:rdf_subject, ?P:rdf_predicate, ?O:rdf_object) is semidet.
 
 hdt_rnd(S, P, O) :-
-  hdt_rnd(S, P, O, _).
+  once(hdt_rnd(S, P, O, _)).
 
 
 %! hdt_rnd(?S:rdf_subject, ?P:rdf_predicate, ?O:rdf_object,
-%!         ?G:hdt_graph) is nondet.
+%!         ?G:hdt_graph) is semidet.
 
 hdt_rnd(S, P, O, G) :-
   hdt_blob(G, Hdt),
@@ -433,13 +433,13 @@ hdt_rnd(S, P, O, G) :-
 
 
 
-%! hdt_rnd_id(?SId:hdt_id, ?PId:hdt_id, ?OId:hdt_id) is nondet.
+%! hdt_rnd_id(?SId:hdt_id, ?PId:hdt_id, ?OId:hdt_id) is semidet.
 
 hdt_rnd_id(SId, PId, OId) :-
-  hdt_rnd_id(SId, PId, OId, _).
+  once(hdt_rnd_id(SId, PId, OId, _)).
 
 
-%! hdt_rnd_id(?SId:hdt_id, ?PId:hdt_id, ?OId:hdt_id, G:hdt_graph) is nondet.
+%! hdt_rnd_id(?SId:hdt_id, ?PId:hdt_id, ?OId:hdt_id, G:hdt_graph) is semidet.
 
 hdt_rnd_id(SId, PId, OId, G) :-
   hdt_blob(G, Hdt),
