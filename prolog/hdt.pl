@@ -408,7 +408,7 @@ hdt_id(SId, PId, OId, G) :-
 %! hdt_rnd(?S:rdf_nonliteral, ?P:rdf_iri, ?O:rdf_term) is semidet.
 
 hdt_rnd(S, P, O) :-
-  once(hdt_rnd(S, P, O, _, _)).
+  once(hdt_rnd(S, P, O, _)).
 
 
 %! hdt_rnd(?S:rdf_nonliteral, ?P:rdf_iri, ?O:rdf_term,
