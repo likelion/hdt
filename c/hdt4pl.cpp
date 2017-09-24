@@ -835,7 +835,7 @@ PREDICATE(hdt_count_id_, 5)
 PREDICATE(hdt_rnd_, 4)
 {
   hdt_wrapper *symb;
-  unsigned int flags=0;
+  unsigned int flags {0};
   char *s, *p, *o;
   if ( !get_hdt(A1, &symb) ||
        !get_hdt_string(A2, &s, S_S, &flags) ||
@@ -843,14 +843,17 @@ PREDICATE(hdt_rnd_, 4)
        !get_hdt_string(A4, &o, S_O, &flags) )
     return FALSE;
   try {
-    IteratorTripleString *it = symb->hdt->search(s,p,o);
-    size_t max = it->estimatedNumResults() - 1;
+    IteratorTripleString *it {symb->hdt->search(s,p,o)};
+    size_t count {it->estimatedNumResults()};
+    if (count == 0)
+      return FALSE;
+    size_t max {count-1};
     uniform_int_distribution<unsigned int> distribution(0, max);
-    unsigned int index = distribution(randomGenerator);
+    unsigned int index {distribution(randomGenerator)};
     Sprintf("%d from 0..%d\n", index, max);
     it->skip(index);
     if (it->hasNext()) {
-      TripleString *t = it->next();
+      TripleString *t {it->next()};
       bool rc =
         ( (!(flags&S_S) || unify_string(A2, t->getSubject().c_str())) &&
           (!(flags&S_P) || unify_string(A3, t->getPredicate().c_str())) &&
@@ -867,7 +870,7 @@ PREDICATE(hdt_rnd_, 4)
 PREDICATE(hdt_rnd_id_, 4)
 {
   hdt_wrapper *symb;
-  unsigned int flags=0;
+  unsigned int flags {0};
   size_t s, p, o;
   if ( !get_hdt(A1, &symb) ||
        !get_hdt_id(A2, &s, S_S, &flags) ||
@@ -876,14 +879,17 @@ PREDICATE(hdt_rnd_id_, 4)
     return FALSE;
   try {
     TripleID pattern(s, p, o);
-    IteratorTripleID *it = symb->hdt->getTriples()->search(pattern);
-    size_t max = it->estimatedNumResults() - 1;
+    IteratorTripleID *it {symb->hdt->getTriples()->search(pattern)};
+    size_t count {it->estimatedNumResults()};
+    if (count == 0)
+      return FALSE;
+    size_t max {count-1};
     uniform_int_distribution<unsigned int> distribution(0, max);
-    unsigned int index = distribution(randomGenerator);
-    Sprintf("%d from 0..%d\n", index, max);
+    unsigned int index {distribution(randomGenerator)};
+    Sprintf("%d from 1..%d\n", index, max);
     it->skip(index);
     if (it->hasNext()) {
-      TripleID *t = it->next();
+      TripleID *t {it->next()};
       bool rc =
         ( (!(flags&S_S) || PL_unify_integer(A2, t->getSubject())) &&
           (!(flags&S_P) || PL_unify_integer(A3, t->getPredicate())) &&
