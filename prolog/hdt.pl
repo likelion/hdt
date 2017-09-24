@@ -136,21 +136,10 @@ error:has_type(rdf_literal, Lex@D) :-
   error:has_type(string, Lex),
   error:has_type(rdf_iri, D).
 
-error:has_type(rdf_object, O) :-
-  error:has_type(rdf_term, O).
-
-error:has_type(rdf_predicate, P) :-
-  error:has_type(rdf_iri, P).
-
 error:has_type(rdf_role, Role) :-
   error:has_type(hdt_role, Role).
 error:has_type(rdf_role, Role) :-
   error:has_type(oneof([bnode,iri,literal,name,node,object,subject]), Role).
-
-error:has_type(rdf_subject, S) :-
-  error:has_type(rdf_bnode, S).
-error:has_type(rdf_subject, S) :-
-  error:has_type(iri, S).
 
 error:has_type(rdf_term, Term) :-
   error:has_type(rdf_bnode, Term).
@@ -339,13 +328,13 @@ hdt_dict(Term, id(Role,Id), G) :- !,
 
 % TRIPLES %
 
-%! hdt(?S:rdf_subject, ?P:rdf_predicate, ?O:rdf_object) is nondet.
+%! hdt(?S:rdf_nonliteral, ?P:rdf_iri, ?O:rdf_term) is nondet.
 
 hdt(S, P, O) :-
   hdt(S, P, O, _).
 
 
-%! hdt(?S:rdf_subject, ?P:rdf_predicate, ?O:rdf_object, ?G:hdt_graph) is nondet.
+%! hdt(?S:rdf_nonliteral, ?P:rdf_iri, ?O:rdf_term, ?G:hdt_graph) is nondet.
 %
 % True if 〈S,P,O〉 is an RDF triple in HDT.
 
@@ -357,18 +346,18 @@ hdt(S, P, O, G) :-
 
 
 
-%! hdt_count(?S:rdf_subject, ?P:rdf_predicate, ?O:rdf_object,
+%! hdt_count(?S:rdf_nonliteral, ?P:rdf_iri, ?O:rdf_term,
 %!           +Count:nonneg) is semidet.
-%! hdt_count(?S:rdf_subject, ?P:rdf_predicate, ?O:rdf_object,
+%! hdt_count(?S:rdf_nonliteral, ?P:rdf_iri, ?O:rdf_term,
 %!           -Count:nonneg) is det.
 
 hdt_count(S, P, O, Count) :-
   hdt_count(S, P, O, Count, _).
 
 
-%! hdt_count(?S:rdf_subjecr, ?P:rdf_predicate, ?O:rdf_object, +Count:nonneg,
+%! hdt_count(?S:rdf_nonliteral, ?P:rdf_iri, ?O:rdf_term, +Count:nonneg,
 %!           ?G:hdt_graph) is semidet.
-%! hdt_count(?S:rdf_subject, ?P:rdf_predicate, ?O:rdf_object, -Count:nonneg,
+%! hdt_count(?S:rdf_nonliteral, ?P:rdf_iri, ?O:rdf_term, -Count:nonneg,
 %!           ?G:hdt_graph) is det.
 %
 % True if Count is the number of matches of the Triple Pattern〈S,P,O〉
@@ -416,13 +405,13 @@ hdt_id(SId, PId, OId, G) :-
 
 
 
-%! hdt_rnd(?S:rdf_subject, ?P:rdf_predicate, ?O:rdf_object) is semidet.
+%! hdt_rnd(?S:rdf_nonliteral, ?P:rdf_iri, ?O:rdf_term) is semidet.
 
 hdt_rnd(S, P, O) :-
-  once(hdt_rnd(S, P, O, _)).
+  once(hdt_rnd(S, P, O, _, _)).
 
 
-%! hdt_rnd(?S:rdf_subject, ?P:rdf_predicate, ?O:rdf_object,
+%! hdt_rnd(?S:rdf_nonliteral, ?P:rdf_iri, ?O:rdf_term,
 %!         ?G:hdt_graph) is semidet.
 
 hdt_rnd(S, P, O, G) :-
@@ -715,8 +704,8 @@ hdt_prefix_id(Prefix, id(Role,Id), G) :-
 
 % OTHERS %
 
-%! hdt_header(?S:rdf_subject, ?P:rdf_predicate, ?O:rdf_object) is nondet.
-%! hdt_header(?S:rdf_subject, ?P:rdf_predicate, ?O:rdf_object,
+%! hdt_header(?S:rdf_nonliteral, ?P:rdf_iri, ?O:rdf_term) is nondet.
+%! hdt_header(?S:rdf_nonliteral, ?P:rdf_iri, ?O:rdf_term,
 %!            ?G:hdt_graph) is nondet.
 %
 % True if 〈S,P,O〉 is a triple in the header of Hdt.
@@ -822,7 +811,7 @@ iri_id(Hdt, Iri, id(Role,Id)) :-
 
 
 
-%! post_object(?O:rdf_object, +Atom:atom) is det.
+%! post_object(?O:rdf_term, +Atom:atom) is det.
 
 post_object(O, Atom1) :-
   atom_concat('"', Atom2, Atom1), !,
@@ -853,7 +842,7 @@ post_literal(Lit) -->
 
 
 
-%! pre_object(+Hdt:blob, ?O:rdf_object, -Atom:atom) is det.
+%! pre_object(+Hdt:blob, ?O:rdf_term, -Atom:atom) is det.
 %
 % This helper predicate implements the feature that literals can be
 % entered partially.  Specifically, it is possible to only supply
@@ -883,7 +872,7 @@ pre_object(_, NonLiteral, NonLiteral) :-
 
 
 
-%! register_graph(+Hdt:blob, +G:atom) is det.
+%! register_graph(+Hdt:blob, +G:rdf_iri) is det.
 
 register_graph_(Hdt, G) :-
   must_be(atom, G),
