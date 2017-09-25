@@ -153,12 +153,12 @@ hdt_term_prefix(Hdt, Prefix, id(Role,Id)) :-
 
 %! hdt_term_random(+Hdt:blob, +Role, -Term) is nondet.
 
-hdt_term_random(Hdt, node, Term) :- !,
+hdt_term_random(Hdt, node, id(Role,Id)) :- !,
   maplist(hdt_term_count(Hdt), [shared,sink,source], [N1,N2,N3]),
   sum_list([N1,N2,N3], N),
   random_between(1, N, Rnd),
   (Rnd =< N1 -> Role = shared ; Rnd =< N2 -> Role = sink ; Role = source),
-  hdt_term_rnd_id_(Hdt, Role, Term).
+  hdt_term_rnd_id_(Hdt, Role, Id).
 % object, predicate, subject
 hdt_term_random(Hdt, Role, id(Role,Id)) :-
   hdt_term_rnd_id_(Hdt, Role, Id).
