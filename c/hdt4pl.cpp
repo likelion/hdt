@@ -55,7 +55,7 @@ static int unify_string(term_t t, const char *s);
 	{ return hdt_error(e);			\
 	} catch (const char *e)			\
 	{ return hdt_error(e);			\
-	} catch (std::exception& e)		\
+	} catch (exception& e)		\
 	{ return hdt_error(e.what());		\
 	}
 
@@ -568,31 +568,33 @@ PREDICATE(hdt_term_rnd_, 3)
     return FALSE;
   }
   try {
-    Dictionary *dict = symb->hdt->getDictionary();
+    Dictionary *dict {symb->hdt->getDictionary()};
     long min, max;
+    TripleComponentRole role;
     if ( section == NOT_SHARED_OBJECT ) {
       min = (long) dict->getNshared() + 1;
       max = (long) dict->getMaxObjectID();
+      role = OBJECT;
     } else if ( section == NOT_SHARED_SUBJECT ) {
       min = (long) dict->getNshared() + 1;
       max = (long) dict->getMaxSubjectID();
+      role = SUBJECT;
     } else if ( section == NOT_SHARED_PREDICATE ) {
       min = 1;
       max = (long) dict->getNpredicates();
+      role = PREDICATE;
     } else if ( section == SHARED_SUBJECT ) {
       min = 1;
       max = (long) dict->getNshared();
+      // We can pick either subject or object here.
+      role = SUBJECT;
     }
     uniform_int_distribution<unsigned int> distribution(min, max);
-    unsigned int index = distribution(randomGenerator);
-    Sprintf("%d from 0..%d\n", index, max);
-    TripleComponentRole role;
-    if ( !get_triple_role(section, &role)) {
-      return FALSE;
-    }
-    std::string str = dict->idToString((size_t)(long)A4, role);
+    unsigned int index {distribution(randomGenerator)};
+    Sprintf("%d from %d..%d\n", index, min, max);
+    string str {dict->idToString((size_t)index, role)};
     if ( !str.empty() ) {
-      return ( A3 = str.c_str() );
+      return PL_unify_chars(A3, PL_ATOM|REP_UTF8, (size_t)-1, str.c_str());
     }
   } CATCH_HDT;
   return FALSE;
@@ -641,12 +643,16 @@ static int get_triple_role(term_t t, TripleComponentRole *role)
   if ( name == ATOM_predicate ) {
     *role = PREDICATE;
   } else if ( name == ATOM_shared ) {
-    // We can pick either subject or object here.
+    // choose either SUBJECT or OBJECT
     *role = SUBJECT;
   } else if ( name == ATOM_sink ) {
     *role = OBJECT;
   } else if ( name == ATOM_source ) {
     *role = SUBJECT;
+  } else if ( name == ATOM_subject ) {
+    *role = SUBJECT;
+  } else if ( name == ATOM_object ) {
+    *role = OBJECT;
   } else {
     return PL_domain_error("triple_role", t);
   }
@@ -685,22 +691,21 @@ PREDICATE(hdt_dict_, 4)
   if ( !get_hdt(A1, &symb) ||
        !get_triple_role(A2, &role) )
     return FALSE;
+  unsigned int id;
   try {
     Dictionary *dict = symb->hdt->getDictionary();
     if ( !PL_is_variable(A3) ) {
       if ( PL_get_nchars(A3, &len, &s,
 			 CVT_ATOM|CVT_STRING|REP_UTF8|CVT_EXCEPTION) ) {
-        std::string str(s);
-	size_t id = dict->stringToId(str, role);
+        string str(s);
+	id = dict->stringToId(str, role);
 	if ( id )
 	  return (A4 = (long) id); // signed/unsigned mismatch
       }
-    } else if ( !PL_is_variable(A4) ) {
-      std::string str = dict->idToString((size_t) A4, role);
-      if ( !str.empty() )
-	return (A3 = str.c_str());
     } else {
-      return PL_instantiation_error(A3);
+      string str = dict->idToString((size_t)(long)A4, role);
+      if ( !str.empty() )
+        return PL_unify_chars(A3, PL_ATOM|REP_UTF8, (size_t)-1, str.c_str());
     }
   } CATCH_HDT;
   return FALSE;
@@ -795,7 +800,7 @@ PREDICATE_NONDET(hdt_id_, 4)
 // hdt_count_(+HDT, ?S, ?P, ?O, -Count)
 PREDICATE(hdt_count_, 5)
 { hdt_wrapper *symb;
-  unsigned int flags {0};
+  unsigned int flags = 0;
   char *s, *p, *o;
   if ( !get_hdt(A1, &symb) ||
        !get_hdt_string(A2, &s, S_S, &flags) ||
@@ -886,7 +891,7 @@ PREDICATE(hdt_rnd_id_, 4)
     size_t max {count-1};
     uniform_int_distribution<unsigned int> distribution(0, max);
     unsigned int index {distribution(randomGenerator)};
-    Sprintf("%d from 1..%d\n", index, max);
+    Sprintf("%d from 0..%d\n", index, max);
     it->skip(index);
     if (it->hasNext()) {
       TripleID *t {it->next()};
