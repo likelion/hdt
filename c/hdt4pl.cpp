@@ -644,7 +644,7 @@ PREDICATE(hdt_string_id, 4)
     { std::string str = dict->idToString((size_t)(long)A4, roleid);
 
       if ( !str.empty() )
-	return (A3 = str.c_str());
+	return PL_unify_chars(A3, PL_ATOM|REP_UTF8, (size_t)-1, str.c_str());
     }
   } CATCH_HDT;
 
