@@ -95,11 +95,11 @@ hdt_term_role(Hdt, predicate, Term) :-
 hdt_term_role(Hdt, shared, Term) :-
   (   var(Term)
   ->  hdt_term_(Hdt, shared, Atom)
-  ;   pre_object(Hdt, Term, Atom),
+  ;   pre_term(Hdt, Term, Atom),
       hdt_(Hdt, content, Atom, _, _),
       hdt_(Hdt, content, _, _, Atom)
   ),
-  post_object(Term, Atom).
+  post_term(Term, Atom).
 % sink
 hdt_term_role(Hdt, sink, Term) :-
   (   var(Term)
@@ -108,16 +108,16 @@ hdt_term_role(Hdt, sink, Term) :-
       hdt_(Hdt, content, _, _, Atom),
       \+ hdt_(Hdt, content, Atom, _, _)
   ),
-  post_object(Term, Atom).
+  post_term(Term, Atom).
 % source
 hdt_term_role(Hdt, source, Term) :-
   (   var(Term)
   ->  hdt_term_(Hdt, source, Atom)
-  ;   pre_object(Hdt, Term, Atom),
+  ;   pre_term(Hdt, Term, Atom),
       hdt_(Hdt, content, Atom, _, _),
       \+ hdt_(Hdt, content, _, _, Atom)
   ),
-  post_object(Term, Atom).
+  post_term(Term, Atom).
 
 
 
@@ -196,7 +196,7 @@ hdt_triple(
   rdf(term(SRoles2,STerm0),term(PRoles2,PTerm0),term(ORoles2,OTerm0))
 ) :-
   add_subject_role(SRoles1, SRoles2),
-  add_predicate_role(PRoles1, predicate, PRoles2),
+  add_predicate_role(PRoles1, PRoles2),
   add_object_role(ORoles1, ORoles2),
   maplist(pre_term(Hdt), [STerm0,PTerm0,OTerm0], [SAtom,PAtom,OAtom]),
   hdt_(Hdt, content, SAtom, PAtom, OAtom),
