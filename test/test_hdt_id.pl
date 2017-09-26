@@ -1,20 +1,9 @@
-:- module(test_hdt, [test/0]).
+:- module(test_hdt, []).
 
 :- reexport(library(hdt_id)).
 
 :- use_module(library(apply)).
 :- use_module(library(plunit)).
-
-test :-
-  hdt_create('test-1.nt', HdtFile),
-  setup_call_cleanup(
-    hdt_open(HdtFile, Hdt),
-    (
-      hdt_dict_(Hdt, subject, Term0, 1),
-      writeln(Term0)
-    ),
-    hdt_close(Hdt)
-  ).
 
 :- begin_tests(hdt, [cleanup(delete_hdts)]).
 

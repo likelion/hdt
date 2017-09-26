@@ -1,5 +1,5 @@
 :- module(
-  hdt_id,
+  hdt_atom,
   [
     hdt_close/1,           % +Hdt
     hdt_create/2,          % +RdfFile, -HdtFile
@@ -17,7 +17,7 @@
 ).
 :- reexport(library(semweb/rdf11)).
 
-/** <module> HDT by ID
+/** <module> HDT by atom
 
 @author Wouter Beek
 @author Jan Wielemaker
@@ -75,23 +75,48 @@ hdt_open(HdtFile, Hdt) :-
 %! hdt_term(+Hdt:blob, +Role, ?Term) is nondet.
 
 % node
-hdt_term(Hdt, node, Term) :- !,
-  member(Role, [shared,sink,source]),
-  hdt_term(Hdt, Role, Term).
+hdt_term(Hdt, node, Term) :-
+  (   hdt_term(Hdt, shared, Term)
+  ;   hdt_term(Hdt, sink, Term)
+  ;   hdt_term(Hdt, source, Term)
+  ).
+% object
+hdt_term(Hdt, object, Term) :-
+  (   hdt_term(Hdt, shared, Term)
+  ;   hdt_term(Hdt, sink, Term)
+  ).
+% predicate
+hdt_term(Hdt, predicate, atom(predicate,Atom)) :-
+  (   var(Atom)
+  ->  hdt_term_(Hdt, predicate, Atom)
+  ;   hdt_(Hdt, content, _, Atom, _)
+  ).
+% shared
+hdt_term(Hdt, shared, atom(shared,Atom)) :-
+  (   var(Atom)
+  ->  hdt_term_(Hdt, shared, Atom)
+  ;   hdt_(Hdt, content, Atom, _, _),
+      hdt_(Hdt, content, _, _, Atom)
+  ).
 % sink
-hdt_term(Hdt, sink, id(sink,Id)) :- !,
-  maplist(hdt_term_count(Hdt), [shared,object], [Offset,Max]),
-  Min is Offset + 1,
-  between(Min, Max, Id).
+hdt_term(Hdt, sink, atom(sink,Atom)) :-
+  (   var(Atom)
+  ->  hdt_term_(Hdt, sink, Atom)
+  ;   hdt_(Hdt, content, _, _, Atom),
+      \+ hdt_(Hdt, content, Atom, _, _)
+  ).
 % source
-hdt_term(Hdt, source, id(source,Id)) :- !,
-  maplist(hdt_term_count(Hdt), [shared,subject], [Offset,Max]),
-  Min is Offset + 1,
-  between(Min, Max, Id).
-% object, predicate, shared, subject
-hdt_term(Hdt, Role, id(Role,Id)) :-
-  hdt_term_count(Hdt, Role, N),
-  between(1, N, Id).
+hdt_term(Hdt, source, atom(source,Atom)) :-
+  (   var(Atom)
+  ->  hdt_term_(Hdt, source, Atom)
+  ;   hdt_(Hdt, content, Atom, _, _),
+      \+ hdt_(Hdt, content, _, _, Atom)
+  ).
+% subject
+hdt_term(Hdt, subject, Term) :-
+  (   hdt_term(Hdt, source, Term)
+  ;   hdt_term(Hdt, shared, Term)
+  ).
 
 
 
@@ -134,30 +159,29 @@ hdt_term_count(Hdt, term, Count) :-
 
 %! hdt_term_prefix(+Hdt:blob, +Prefix:atom, ?Term) is nondet.
 
-hdt_term_prefix(Hdt, Prefix, id(Role,Id)) :-
-  hdt_prefix_id_(Hdt, Role, Prefix, Id).
+hdt_term_prefix(Hdt, Prefix, atom(Role,Atom)) :-
+  hdt_prefix_(Hdt, Role, Prefix, Atom).
 
 
 
 %! hdt_term_random(+Hdt:blob, +Role, -Term) is nondet.
 
-hdt_term_random(Hdt, node, id(Role,Id)) :- !,
+hdt_term_random(Hdt, node, atom(Role,Atom)) :- !,
   maplist(hdt_term_count(Hdt), [shared,sink,source], [N1,N2,N3]),
   sum_list([N1,N2,N3], N),
   random_between(1, N, Rnd),
   (Rnd =< N1 -> Role = shared ; Rnd =< N2 -> Role = sink ; Role = source),
-  hdt_term_rnd_id_(Hdt, Role, Id).
+  hdt_term_rnd_(Hdt, Role, Atom).
 % object, predicate, subject
-hdt_term_random(Hdt, Role, id(Role,Id)) :-
-  hdt_term_rnd_id_(Hdt, Role, Id).
+hdt_term_random(Hdt, Role, atom(Role,Atom)) :-
+  hdt_term_rnd_(Hdt, Role, Atom).
 
 
 
-%! hdt_term_translate(+Hdt:blob, ?RdfTerm, ?HdtTerm) is det.
+%! hdt_term_translate(+Hdt:blob, ?RdfTerm, ?HdtAtom) is det.
 
-hdt_term_translate(Hdt, term(Role,Term), id(Role,Id)) :-
+hdt_term_translate(Hdt, term(Role,Term), id(Role,Atom)) :-
   pre_term(Hdt, Term, Atom),
-  hdt_dict_(Hdt, Role, Atom, Id),
   post_term(Term, Atom).
 
 
@@ -166,14 +190,13 @@ hdt_term_translate(Hdt, term(Role,Term), id(Role,Id)) :-
 %
 % True if 〈SId,SIP,SIO〉 is an integer triple in Hdt.
 
-hdt_triple(Hdt, id(SRole,SId), id(predicate,PId), id(ORole,OId)) :-
+hdt_triple(Hdt, atom(SRole,SAtom), atom(predicate,PAtom), atom(ORole,OAtom)) :-
   pre_triple(SRole, ORole),
-  hdt_id_(Hdt, SId, PId, OId),
-  post_triple(Hdt, id(SRole,SId), id(ORole,OId)),
-  (   debugging(hdt_id)
+  hdt_(Hdt, content, SAtom, PAtom, OAtom),
+  (   debugging(hdt_atom)
   ->  maplist(hdt_term_translate(Hdt), [S,P,O],
-              [id(SRole,SId),id(predicate,PId),id(ORole,OId)]),
-      dcg_debug(hdt_id, ("TP ",rdf_dcg_triple(S,P,O)))
+              [atom(SRole,SAtom),atom(predicate,PAtom),atom(ORole,OAtom)]),
+      dcg_debug(hdt_atom, ("TP ",rdf_dcg_triple(S,P,O)))
   ;   true
   ).
 
@@ -181,33 +204,34 @@ hdt_triple(Hdt, id(SRole,SId), id(predicate,PId), id(ORole,OId)) :-
 
 %! hdt_triple_count(+Hdt:blob, ?S, ?P, ?O, +Count:nonneg) is semidet.
 
-hdt_triple_count(Hdt, id(SRole,SId), id(predicate,PId), id(ORole,OId), Count) :-
+hdt_triple_count(Hdt, atom(SRole,SAtom), atom(predicate,PAtom),
+                 atom(ORole,OAtom), Count) :-
   pre_triple(SRole, ORole),
-  hdt_count_id_(Hdt, SId, PId, OId, Count), !.
+  hdt_count_(Hdt, SAtom, PAtom, OAtom, Count), !.
 hdt_triple_count(_, _, _, _, 0).
 
 
 
 %! hdt_triple_random(+Hdt:blob, ?S, ?P, ?O) is semidet.
 
-hdt_triple_random(Hdt, id(SRole,SId), id(predicate,PId), id(ORole,OId)) :-
+hdt_triple_random(Hdt, atom(SRole,SAtom), atom(predicate,PAtom),
+                  atom(ORole,OAtom)) :-
   pre_triple(SRole, ORole),
-  hdt_rnd_id_(Hdt, SId, PId, OId),
-  post_triple(Hdt, id(SRole,SId), id(ORole,OId)),
-  (   debugging(hdt_id)
+  hdt_rnd_(Hdt, SAtom, PAtom, OAtom),
+  (   debugging(hdt_atom)
   ->  maplist(hdt_term_translate(Hdt), [S,P,O],
-              [id(SRole,SId),id(predicate,PId),id(ORole,OId)]),
-      dcg_debug(hdt_id, ("random ",rdf_dcg_triple(S,P,O)))
+              [atom(SRole,SAtom),atom(predicate,PAtom),atom(ORole,OAtom)]),
+      dcg_debug(hdt_atom, ("random ",rdf_dcg_triple(S,P,O)))
   ;   true
   ).
 
 
 
 %! hdt_triple_translate(+Hdt:blob, ?Triple:compound,
-%!                      ?TripleId:compound) is det.
+%!                      ?TripleAtom:compound) is det.
 
-hdt_triple_translate(Hdt, rdf(S,P,O), rdf(SId,PId,OId)) :-
-  maplist(hdt_term_translate(Hdt), [S,P,O], [SId,PId,OId]).
+hdt_triple_translate(Hdt, rdf(S,P,O), rdf(SAtom,PAtom,OAtom)) :-
+  maplist(hdt_term_translate(Hdt), [S,P,O], [SAtom,PAtom,OAtom]).
 
 
 
@@ -282,8 +306,8 @@ pre_term(_, NonLiteral, NonLiteral).
 %! pre_triple(?SRole, ?ORole) is semidet.
 
 pre_triple(SRole, ORole) :-
-  (var(SRole) -> SRole = subject ; memberchk(SRole, [shared,source,subject])),
-  (var(ORole) -> ORole = object ; memberchk(ORole, [object,shared,sink])).
+  (var(SRole) -> true ; memberchk(SRole, [shared,source,subject])),
+  (var(ORole) -> true ; memberchk(ORole, [object,shared,sink])).
 
 
 
@@ -315,12 +339,3 @@ post_literal(Lit) -->
       }
   ;   {rdf_global_object(Lex^^xsd:string, Lit)}
   ).
-
-
-
-%! post_triple(+Hdt:blob, ?S, ?O) is semidet.
-
-post_triple(Hdt, id(SRole,SId), id(ORole,OId)) :-
-  hdt_term_count(Hdt, shared, Max),
-  (SId > Max -> SRole = source ; SRole = shared),
-  (OId > Max -> ORole = sink ; ORole = shared).

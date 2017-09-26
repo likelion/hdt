@@ -187,6 +187,38 @@ These will not be changed in the new API.
 
 * Identifiers
 
+#+BEGIN_SRC
+  a  ?x c . ?x=predicate
+  ?x e  f . ?x=
+#+END_SRC
+
+#+BEGIN_SRC
+  a  b ?x . ?x=object&iri
+  ?x e f  . ?x=object&iri&subject=shared
+#+END_SRC
+
+#+BEGIN_SRC
+  a  b ?x . ?x=object&literal
+  ?x e f  . FAIL
+#+END_SRC
+
+#+BEGIN_SRC
+  a  ?x c . ?x=predicate
+  ?x e  f . ?x=predicate&subject
+#+END_SRC
+
+#+BEGIN_SRC prolog
+subject_role(X, s) :-
+  var(X), !.
+subject_role(o, so).
+subject_role(p, sp).
+subject_role(s, s).
+subject_role(s0, s0).
+subject_role(so, so).
+subject_role(sp, sp).
+subject_role(sop, sop).
+#+END_SRC
+
 term | atom | positive_integer
 
 HDT introduces new identifiers to denote RDF resources.  These
