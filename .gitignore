@@ -2,7 +2,6 @@
 *.dylib
 *.hdt
 *.hdt.index*
-*.nt
 *.o
 *.so
 .gdbinit
