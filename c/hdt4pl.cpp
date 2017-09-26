@@ -819,7 +819,7 @@ PREDICATE(hdt_count_, 5)
 // hdt_count_id_(+HDT, ?SId, ?PId, ?OId, -Count)
 PREDICATE(hdt_count_id_, 5)
 { hdt_wrapper *symb;
-  unsigned int flags {0};
+  unsigned int flags = 0;
   size_t s, p, o;
   if ( !get_hdt(A1, &symb) ||
        !get_hdt_id(A2, &s, S_S, &flags) ||
@@ -840,7 +840,7 @@ PREDICATE(hdt_count_id_, 5)
 PREDICATE(hdt_rnd_, 4)
 {
   hdt_wrapper *symb;
-  unsigned int flags {0};
+  unsigned int flags = 0;
   char *s, *p, *o;
   if ( !get_hdt(A1, &symb) ||
        !get_hdt_string(A2, &s, S_S, &flags) ||
@@ -875,7 +875,7 @@ PREDICATE(hdt_rnd_, 4)
 PREDICATE(hdt_rnd_id_, 4)
 {
   hdt_wrapper *symb;
-  unsigned int flags {0};
+  unsigned int flags = 0;
   size_t s, p, o;
   if ( !get_hdt(A1, &symb) ||
        !get_hdt_id(A2, &s, S_S, &flags) ||

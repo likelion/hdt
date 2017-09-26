@@ -2,7 +2,7 @@
 
 HDTHOME=hdt-cpp/hdt-lib
 SOBJ=	$(PACKSODIR)/hdt4pl.$(SOEXT)
-CFLAGS+=-I$(HDTHOME)/include -g -Wall
+CFLAGS+=-I$(HDTHOME)/include -g -Wall -std=c++11
 LIBS=	-L$(HDTHOME) -lhdt
 OBJ=	c/hdt4pl.o
 LD=g++

@@ -275,17 +275,14 @@ map_role(subject, source).
 
 pre_term(_, Var, _) :-
   var(Var), !.
-pre_term(Hdt, Lex@LTag, Atom) :- !,
-  must_be(string, Lex),
+pre_term(Hdt, literal(lang(LTag,Lex)), Atom) :- !,
   (   var(LTag)
   ->  atomic_list_concat(['"',Lex,'"@'], Prefix),
       hdt_prefix_(Hdt, sink, Prefix, O),
       pre_term(Hdt, O, Atom)
   ;   atomic_list_concat(['"',Lex,'"@',LTag], Atom)
   ).
-pre_term(Hdt, Val^^D, Atom) :- !,
-  must_be(ground, Val),
-  rdf_lexical_form(Val^^D, Lex^^D),
+pre_term(Hdt, literal(type(D,Lex)), Atom) :- !,
   (   var(D)
   ->  atomic_list_concat(['"',Lex,'"^^<'], Prefix),
       hdt_prefix_(Hdt, sink, Prefix, O),
@@ -304,23 +301,26 @@ post_term(O, Atom1) :-
   phrase(post_literal(O), Codes).
 post_term(NonLiteral, NonLiteral).
 
-post_literal(Lit) -->
+post_literal(Literal) -->
   string(Codes1),
   "\"", !,
-  {string_codes(Lex, Codes1)},
+  {atom_codes(Lex, Codes1)},
   (   "^"
   ->  "^<",
       string(Codes2),
       ">",
       {
         atom_codes(D, Codes2),
-        rdf11:post_object(Lit, literal(type(D,Lex)))
+        Literal = literal(type(D,Lex))
       }
   ;   "@"
   ->  remainder(Codes2),
       {
         atom_codes(LTag, Codes2),
-        rdf11:post_object(Lit, literal(lang(LTag,Lex)))
+        Literal = literal(lang(LTag,Lex))
       }
-  ;   {rdf_global_object(Lex^^xsd:string, Lit)}
+  ;   {
+        rdf_equal(xsd:string, D),
+        Literal = literal(type(D,Lex))
+      }
   ).
