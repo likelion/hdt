@@ -3,6 +3,8 @@
   [
     hdt_close/1,        % +Hdt
     hdt_create/2,       % +RdfFile, -HdtFile
+    hdt_graph/2,        % ?Hdt, ?G
+    hdt_init/1,         % +HdtFile
     hdt_open/2,         % +HdtFile, -Hdt
     hdt_term/3,         % +Hdt, +Role, ?Term
     hdt_term_count/3,   % +Hdt, +Role, ?Count
@@ -34,8 +36,14 @@
 :- use_module(library(semweb/rdf_prefix), []).
 :- use_module(library(semweb/rdf_print)).
 :- use_module(library(sgml)).
+:- use_module(library(uri)).
 
 :- use_foreign_library(foreign(hdt4pl)).
+
+:- at_halt(forall(hdt_graph(Hdt, _), hdt_close(Hdt))).
+
+:- dynamic
+    hdt_graph/2.
 
 :- rdf_meta
    hdt_term(+, +, r),
@@ -69,6 +77,15 @@ hdt_create(RdfFile, HdtFile) :-
   ;   true
   ),
   hdt_create_(HdtFile, RdfFile, []).
+
+
+
+%! hdt_init(+HdtFile:atom) is det.
+
+hdt_init(HdtFile) :-
+  uri_file_name(G, HdtFile),
+  hdt_open(HdtFile, Hdt),
+  assert(hdt_graph(Hdt, G)).
 
 
 
@@ -187,8 +204,8 @@ hdt_triple(Hdt, S, P, O) :-
   maplist(pre_term(Hdt), [S,P,O], [SAtom,PAtom,OAtom]),
   hdt_(Hdt, content, SAtom, PAtom, OAtom),
   maplist(post_term, [S,P,O], [SAtom,PAtom,OAtom]),
-  (   debugging(hdt_atom)
-  ->  dcg_debug(hdt_atom, ("TP ",rdf_dcg_triple(S,P,O)))
+  (   debugging(hdt_term)
+  ->  dcg_debug(hdt_term, ("TP ",rdf_dcg_triple(S,P,O)))
   ;   true
   ).
 
@@ -209,8 +226,8 @@ hdt_triple_random(Hdt, S, P, O) :-
   maplist(pre_term(Hdt), [S,P,O], [SAtom,PAtom,OAtom]),
   hdt_rnd_(Hdt, SAtom, PAtom, OAtom),
   maplist(post_term, [S,P,O], [SAtom,PAtom,OAtom]),
-  (   debugging(hdt_atom)
-  ->  dcg_debug(hdt_atom, ("random ",rdf_dcg_triple(S,P,O)))
+  (   debugging(hdt_term)
+  ->  dcg_debug(hdt_term, ("random ",rdf_dcg_triple(S,P,O)))
   ;   true
   ).
 
