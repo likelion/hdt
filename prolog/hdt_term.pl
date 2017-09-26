@@ -3,8 +3,9 @@
   [
     hdt_close/1,        % +Hdt
     hdt_create/2,       % +RdfFile, -HdtFile
+    hdt_deinit/1,       % +Hdt
     hdt_graph/2,        % ?Hdt, ?G
-    hdt_init/1,         % +HdtFile
+    hdt_init/3,         % +HdtFile, -Hdt, ?G
     hdt_open/2,         % +HdtFile, -Hdt
     hdt_term/3,         % +Hdt, +Role, ?Term
     hdt_term_count/3,   % +Hdt, +Role, ?Count
@@ -80,12 +81,30 @@ hdt_create(RdfFile, HdtFile) :-
 
 
 
-%! hdt_init(+HdtFile:atom) is det.
+%! hdt_deinit(+Hdt:blob) is det.
 
-hdt_init(HdtFile) :-
-  uri_file_name(G, HdtFile),
+hdt_deinit(Hdt) :-
+  with_mutex(hdt_term, (
+    hdt_graph(Hdt, G),
+    retractall(hdt_graph(Hdt, G)),
+    hdt_close(Hdt)
+  )).
+
+
+
+%! hdt_init(+HdtFile:atom, -Hdt:blob, ?G:atom) is det.
+
+hdt_init(HdtFile, Hdt, G) :-
+  (var(G) -> uri_file_name(G, HdtFile) ; true),
   hdt_open(HdtFile, Hdt),
-  assert(hdt_graph(Hdt, G)).
+  with_mutex(hdt_term, (
+    (   hdt_graph(Hdt, _)
+    ->  existence_error(hdt, Hdt)
+    ;   hdt_graph(_, G)
+    ->  existence_error(graph, G)
+    ;   assert(hdt_graph(Hdt, G))
+    )
+  )).
 
 
 
@@ -201,9 +220,9 @@ index_role(N1, [H|T1], [_|T2], Role) :-
 % True if 〈SId,SIP,SIO〉 is an integer triple in Hdt.
 
 hdt_triple(Hdt, S, P, O) :-
-  maplist(pre_term(Hdt), [S,P,O], [SAtom,PAtom,OAtom]),
-  hdt_(Hdt, content, SAtom, PAtom, OAtom),
-  maplist(post_term, [S,P,O], [SAtom,PAtom,OAtom]),
+  pre_term(Hdt, O, OAtom),
+  hdt_(Hdt, content, S, P, OAtom),
+  post_term(O, OAtom),
   (   debugging(hdt_term)
   ->  dcg_debug(hdt_term, ("TP ",rdf_dcg_triple(S,P,O)))
   ;   true
@@ -214,8 +233,8 @@ hdt_triple(Hdt, S, P, O) :-
 %! hdt_triple_count(+Hdt:blob, ?S, ?P, ?O, -Count:nonneg) is det.
 
 hdt_triple_count(Hdt, S, P, O, Count) :-
-  maplist(pre_term(Hdt), [S,P,O], [SAtom,PAtom,OAtom]),
-  hdt_count_(Hdt, SAtom, PAtom, OAtom, Count), !.
+  pre_term(Hdt, O, OAtom),
+  hdt_count_(Hdt, S, P, OAtom, Count), !.
 hdt_triple_count(_, _, _, _, 0).
 
 
@@ -223,9 +242,9 @@ hdt_triple_count(_, _, _, _, 0).
 %! hdt_triple_random(+Hdt:blob, ?S, ?P, ?O) is semidet.
 
 hdt_triple_random(Hdt, S, P, O) :-
-  maplist(pre_term(Hdt), [S,P,O], [SAtom,PAtom,OAtom]),
-  hdt_rnd_(Hdt, SAtom, PAtom, OAtom),
-  maplist(post_term, [S,P,O], [SAtom,PAtom,OAtom]),
+  pre_term(Hdt, O, OAtom),
+  hdt_rnd_(Hdt, S, P, OAtom),
+  post_term(O, OAtom),
   (   debugging(hdt_term)
   ->  dcg_debug(hdt_term, ("random ",rdf_dcg_triple(S,P,O)))
   ;   true
@@ -306,6 +325,8 @@ pre_term(Hdt, literal(type(D,Lex)), Atom) :- !,
       pre_term(Hdt, O, Atom)
   ;   atomic_list_concat(['"',Lex,'"^^<',D,>], Atom)
   ).
+pre_term(_, literal(Lex), Atom) :- !,
+  atomic_list_concat(['"',Lex,'"'], Atom).
 pre_term(_, NonLiteral, NonLiteral).
 
 
@@ -336,8 +357,5 @@ post_literal(Literal) -->
         atom_codes(LTag, Codes2),
         Literal = literal(lang(LTag,Lex))
       }
-  ;   {
-        rdf_equal(xsd:string, D),
-        Literal = literal(type(D,Lex))
-      }
+  ;   {Literal = literal(Lex)}
   ).
