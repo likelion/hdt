@@ -20,13 +20,13 @@ test(count, [cleanup(hdt_close(Hdt)),
 test(node, [cleanup(hdt_close(Hdt)),
             nondet,
             setup(hdt_open('test-1.hdt', Hdt)),
-            set(Term = ['_:x',"x:x"^^'y:y'])]) :-
+            set(Term = ['_:x',literal(type('y:y','x:x'))])]) :-
   hdt_term(Hdt, node, Term).
 
 test(object, [cleanup(hdt_close(Hdt)),
               nondet,
               setup(hdt_open('test-1.hdt', Hdt)),
-              set(Term = ["x:x"^^'y:y'])]) :-
+              set(Term = [literal(type('y:y','x:x'))])]) :-
   hdt_term(Hdt, object, Term).
 
 test(predicate, [cleanup(hdt_close(Hdt)),
@@ -50,7 +50,7 @@ test(subject, [cleanup(hdt_close(Hdt)),
 test(hdt, [cleanup(hdt_close(Hdt)),
            nondet,
            setup(hdt_open('test-1.hdt', Hdt)),
-           set(Triple == [rdf('_:x','x:x',"x:x"^^'y:y')])]) :-
+           set(Triple == [rdf('_:x','x:x',literal(type('y:y','x:x')))])]) :-
   hdt_triple(Hdt, S, P, O),
   Triple = rdf(S,P,O).
 
