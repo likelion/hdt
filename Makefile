@@ -1,9 +1,11 @@
 # Build HDT library for SWI-Prolog
 
-HDTHOME=hdt-cpp/hdt-lib
+HDTHOME=hdt-cpp
+DLIBS=/.libs
 SOBJ=	$(PACKSODIR)/hdt4pl.$(SOEXT)
-CFLAGS+=-I$(HDTHOME)/include -g
-LIBS=	-L$(HDTHOME) -lhdt
+CFLAGS+=-I$(HDTHOME)/libhdt/include -g
+LIBDIR=$(HDTHOME)/libhdt$(DLIBS)
+LIBS=	-L$(LIBDIR) -lhdt
 OBJ=	c/hdt4pl.o
 LD=g++
 
@@ -13,24 +15,26 @@ $(SOBJ): $(OBJ)
 	mkdir -p $(PACKSODIR)
 	$(LD) $(ARCH) $(LDSOFLAGS) -o $@ $< $(LIBS) $(SWISOLIB) -lserd-0
 
-c/hdt4pl.o: c/hdt4pl.cpp $(HDTHOME)/libhdt.a
+c/hdt4pl.o: c/hdt4pl.cpp $(LIBDIR)/libhdt.a
 	$(CC) $(ARCH) $(CFLAGS) -c -o $@ c/hdt4pl.cpp
 
-$(HDTHOME)/.make-senitel:
-	[ ! -f $(HDTHOME)/Makefile ] || (cd $(HDTHOME) && git reset --hard)
-	git submodule update --init
-	sed -i 's/^FLAGS=-O3/FLAGS=-fPIC -O3/' $(HDTHOME)/Makefile
-	touch $@
+$(LIBDIR)/libhdt.a: $(HDTHOME)/Makefile
+	$(MAKE) -C $(HDTHOME)
 
-$(HDTHOME)/libhdt.a: $(HDTHOME)/.make-senitel
-	$(MAKE) -C $(HDTHOME) all
+$(HDTHOME)/Makefile.am:
+	git submodule update --init
+
+$(HDTHOME)/Makefile.in: $(HDTHOME)/Makefile.am
+	(cd $(HDTHOME) && ./autogen.sh)
+
+$(HDTHOME)/Makefile: $(HDTHOME)/Makefile.in
+	(cd $(HDTHOME) && ./configure --with-pic --disable-shared)
 
 check::
 install::
 clean:
-	rm -f $(OBJ) $(HDTHOME)/.make-senitel
-	[ ! -f $(HDTHOME)/Makefile ] || (cd $(HDTHOME) && git reset --hard)
 	[ ! -f $(HDTHOME)/Makefile ] || $(MAKE) -C $(HDTHOME) clean
 
-distclean: clean
+distclean:
+	[ ! -f $(HDTHOME)/Makefile ] || $(MAKE) -C $(HDTHOME) distclean
 	rm -f $(SOBJ)
