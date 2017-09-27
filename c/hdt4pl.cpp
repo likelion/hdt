@@ -88,6 +88,11 @@ static atom_t ATOM_base_uri;
 static atom_t ATOM_source;
 static atom_t ATOM_sink;
 
+static atom_t ATOM_format;
+static atom_t ATOM_nquads;
+static atom_t ATOM_ntriples;
+static atom_t ATOM_turtle;
+
 static functor_t FUNCTOR_rdftype2;
 static functor_t FUNCTOR_rdflang2;
 
@@ -634,6 +639,22 @@ PREDICATE(hdt_term_rnd_id_, 3)
 }
 
 
+static int get_serialization_format(term_t t, RDFNotation *format)
+{
+  atom_t name;
+  if ( !PL_get_atom_ex(t, &name) ) {
+    return FALSE;
+  }
+  if ( name == ATOM_ntriples ) {
+    *format = NTRIPLES;
+  } else if ( name == ATOM_nquads ) {
+    *format = NQUAD;
+  } else if ( name == ATOM_turtle ) {
+    *format = TURTLE;
+  }
+}
+
+
 static int get_triple_role(term_t t, TripleComponentRole *role)
 {
   atom_t name;
@@ -923,6 +944,7 @@ PREDICATE(hdt_create_, 3)
 { char *hdt_file, *rdf_file;
   HDTSpecification spec;
   char *base_uri = (char*)"http://example.org/base";
+  RDFNotation format = NTRIPLES;
 
   if ( !PL_get_file_name(A1, &hdt_file, PL_FILE_OSPATH) ||
        !PL_get_file_name(A2, &rdf_file, PL_FILE_OSPATH|PL_FILE_READ) )
@@ -937,19 +959,22 @@ PREDICATE(hdt_create_, 3)
     if ( PL_get_name_arity(opt, &name, &arity) && arity == 1 )
     { PlTerm ov = opt[1];
 
-      if ( name == ATOM_base_uri )
-      { size_t len;
-
+      if ( name == ATOM_base_uri ) {
+        size_t len;
 	if ( !PL_get_nchars(ov, &len, &base_uri,
 			    CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8) )
 	  return FALSE;
+      } else if ( name == ATOM_format ) {
+        if ( !get_serialization_format(ov, &format) ) {
+          return FALSE;
+        }
       }
     } else
       return PL_type_error("option", opt);
   }
 
   try
-  { HDT *hdt = HDTManager::generateHDT(rdf_file, base_uri, NTRIPLES, spec);
+  { HDT *hdt = HDTManager::generateHDT(rdf_file, base_uri, format, spec);
 
     //Header *header = hdt->getHeader();
     //header->insert("myResource1", "property", "value");

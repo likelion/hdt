@@ -67,6 +67,8 @@ hdt_close(Hdt) :-
 %! hdt_create(+RdfFile:atom, ?HdtFile:atom) is det.
 
 hdt_create(RdfFile, HdtFile) :-
+  file_name_extension(_, Ext, RdfFile),
+  extension_format(Ext, Format),
   (   var(HdtFile)
   ->  directory_file_path(Dir, RdfLocal, RdfFile),
       atomic_list_concat(Segments1, ., RdfLocal),
@@ -77,7 +79,11 @@ hdt_create(RdfFile, HdtFile) :-
       directory_file_path(Dir, HdtLocal, HdtFile)
   ;   true
   ),
-  hdt_create_(HdtFile, RdfFile, []).
+  hdt_create_(HdtFile, RdfFile, [format(Format)]).
+
+extension_format(nq, nquads).
+extension_format(nt, ntriples).
+extension_format(ttl, turtle).
 
 
 

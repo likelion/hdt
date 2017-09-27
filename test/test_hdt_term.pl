@@ -8,8 +8,9 @@
 :- begin_tests(hdt, [cleanup(delete_hdts)]).
 
 test(hdt_create) :-
-  expand_file_name('test-*.nt', RdfFiles),
-  maplist(hdt_create, RdfFiles, _).
+  expand_file_name('test-*.{nt,ttl}', RdfFiles),
+  maplist(hdt_create, RdfFiles, HdtFiles),
+  maplist(exists_file, HdtFiles).
 
 test(count, [cleanup(hdt_close(Hdt)),
              nondet,
