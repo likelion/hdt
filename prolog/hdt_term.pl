@@ -3,6 +3,7 @@
   [
     hdt_close/1,        % +Hdt
     hdt_create/2,       % +RdfFile, -HdtFile
+    hdt_create/3,       % +RdfFile, -HdtFile, +Options
     hdt_deinit/1,       % +Hdt
     hdt_graph/2,        % ?Hdt, ?G
     hdt_init/3,         % +HdtFile, -Hdt, ?G
@@ -65,21 +66,35 @@ hdt_close(Hdt) :-
 
 
 %! hdt_create(+RdfFile:atom, ?HdtFile:atom) is det.
+%! hdt_create(+RdfFile:atom, ?HdtFile:atom, +Options:list(compound)) is det.
 
 hdt_create(RdfFile, HdtFile) :-
-  file_name_extension(_, Ext, RdfFile),
-  extension_format(Ext, Format),
+  hdt_create(RdfFile, HdtFile, []).
+
+
+hdt_create(RdfFile0, HdtFile, Options1) :-
+  absolute_file_name(RdfFile0, RdfFile, [access(read)]),
+  ignore(option(format(Format), Options1)),
+  (   ground(Format)
+  ->  Options2 = Options1
+  ;   once((
+        atomic_list_concat(Comps, ., RdfFile),
+        member(Ext, Comps),
+        extension_format(Ext, Format)
+      )),
+      merge_options(Options1, [format(Format)], Options2)
+  ),
   (   var(HdtFile)
   ->  directory_file_path(Dir, RdfLocal, RdfFile),
       atomic_list_concat(Segments1, ., RdfLocal),
-      % NOTE: does not auto-detect that this is deterministic :(
+      % NOTE: SWI does not auto-detect that this is deterministic :(
       once(append(Segments2, [_], Segments1)),
       atomic_list_concat(Segments2, ., Base),
       file_name_extension(Base, hdt, HdtLocal),
       directory_file_path(Dir, HdtLocal, HdtFile)
   ;   true
   ),
-  hdt_create_(HdtFile, RdfFile, [format(Format)]).
+  hdt_create_(HdtFile, RdfFile, Options2).
 
 extension_format(nq, nquads).
 extension_format(nt, ntriples).
