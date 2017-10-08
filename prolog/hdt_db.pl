@@ -137,6 +137,15 @@ index_role(N1, [H|T1], [_|T2], Role) :-
 %! hdt_term_translate(+Hdt:blob, +Term:rdf_term, +Id:compound) is semidet.
 %! hdt_term_translate(+Hdt:blob, +Term:rdf_term, -Id:compound) is det.
 %! hdt_term_translate(+Hdt:blob, -Term:rdf_term, +Id:compound) is det.
+%
+% @arg Id A compound term of the form id(+Role:atom,?Id:positive_integer).
+%
+% Notice that the Role _must_ be specified as part of the Id compound
+% term:
+%
+% ```prolog
+% hdt_term_translate($Hdt, $Term, id(object,Id))
+% ```
 
 hdt_term_translate(Hdt, Term, id(Role,Id)) :-
   pre_term(Hdt, Term, Atom),
