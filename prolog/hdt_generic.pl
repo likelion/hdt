@@ -11,8 +11,8 @@
     hdt_init/2,       % +HdtFile, ?G
     hdt_open/2,       % +HdtFile, -Hdt
     hdt_term_count/3, % +Hdt, +Role, ?Count
-    subrole_/2,       % +Role, -Subrole
-    subroles_/2       % +Role, -Subroles
+    role_leafrole/2,  % +Role, -LeafRole
+    role_subrole/2    % +Role, -SubRole
   ]
 ).
 :- reexport(library(semweb/rdf11)).
@@ -33,21 +33,20 @@ API.
 :- use_module(library(filesex)).
 :- use_module(library(lists)).
 :- use_module(library(option)).
-:- use_module(library(semweb/rdf11)).
-:- use_module(library(sgml)).
+:- use_module(library(semweb/rdf_api)).
 
 :- use_foreign_library(foreign(hdt4pl)).
 
-:- at_halt(forall(hdt_graph(Hdt, _), hdt_close(Hdt))).
+:- at_halt(forall(hdt_graph_(Hdt, _), hdt_close(Hdt))).
 
 :- dynamic
-    hdt_graph/2.
+    hdt_graph_/2.
 
 :- rdf_meta
    atom_literal_(+, o),
    hdt_graph(r),
    hdt_graph(?, r),
-   hdt_header_(+, r, r, o),
+   hdt_header_(+, r, r, -),
    hdt_init(+, r).
 
 
@@ -107,7 +106,7 @@ hdt_create(RdfFile, HdtFile, Options1) :-
       directory_file_path(Dir, HdtLocal, HdtFile)
   ;   true
   ),
-  
+
   hdt_create_(HdtFile, RdfFile, Options2).
 
 extension_format(n3, n3).
@@ -123,8 +122,8 @@ extension_format(ttl, turtle).
 
 hdt_deinit(G) :-
   with_mutex(hdt, (
-    hdt_graph(Hdt, G),
-    retractall(hdt_graph(Hdt, G)),
+    hdt_graph_(Hdt, G),
+    retractall(hdt_graph_(Hdt, G)),
     hdt_close(Hdt)
   )).
 
@@ -142,35 +141,23 @@ hdt_graph(G) :-
 %! hdt_graph(-Hdt:blob, +G:atom) is semidet.
 %! hdt_graph(-Hdt:blob, -G:atom) is nondet.
 
+hdt_graph(Hdt, G) :-
+  ground(Hdt), !,
+  once(hdt_graph_(Hdt, G)).
+hdt_graph(Hdt, G) :-
+  ground(G), !,
+  once(hdt_graph_(Hdt, G)).
+hdt_graph(Hdt, G) :-
+  hdt_graph_(Hdt, G).
 
 
-%! hdt_header_(+Hdt:blob, ?S, ?P, -O) is nondet.
 
-hdt_header_(Hdt, S, P, O) :-
+%! hdt_header_(+Hdt:blob, ?S:atom, ?P:atom, -Lex:string) is nondet.
+
+hdt_header_(Hdt, S, P, Lex) :-
   hdt_triple_(Hdt, header, S, P, Atom),
-  atom_object(Atom, O).
-
-atom_object(Atom1, O) :-
-  atom_concat('"', Atom2, Atom1), !,
-  atom_concat(Lex, '"', Atom2),
-  atom_literal(Lex, O).
-atom_object(O, O).
-
-atom_literal(Lex, literal(type(D,Lex))) :-
-  catch(
-    xsd_number_string(N, Lex),
-    error(syntax_error(xsd_number),_),
-    fail
-  ), !,
-  (integer(N) -> rdf_equal(D, xsd:integer) ; rdf_equal(D, xsd:float)).
-atom_literal(Lex, literal(type(D,Lex))) :-
-  catch(
-    xsd_time_string(_, D, Lex),
-    error(_,_),
-    fail
-  ), !.
-atom_literal(Lex, literal(type(D,Lex))) :-
-  rdf_equal(D, xsd:string).
+  rdf_atom_to_term(Atom, Literal),
+  rdf_literal(Literal, _, _, Lex).
 
 
 
@@ -192,11 +179,11 @@ hdt_init(HdtFile, G) :-
   (var(G) -> uri_file_name(G, HdtFile) ; true),
   hdt_open(HdtFile, Hdt),
   with_mutex(hdt, (
-    (   hdt_graph(Hdt, _)
+    (   hdt_graph_(Hdt, _)
     ->  throw(error(already_exists(hdt_blob, Hdt), _))
-    ;   hdt_graph(_, G)
+    ;   hdt_graph_(_, G)
     ->  throw(error(already_exists(hdt_graph, G)))
-    ;   assert(hdt_graph(Hdt, G))
+    ;   assert(hdt_graph_(Hdt, G))
     )
   )).
 
@@ -245,8 +232,8 @@ hdt_open(HdtFile, Hdt, Options) :-
 % object, predicate, shared, subject
 hdt_term_count(Hdt, Role, N) :-
   header_role_property(Role, P), !,
-  once(hdt_header_(Hdt, _, P, N0)),
-  N0 = N^^_.
+  once(hdt_header_(Hdt, _, P, Lex)),
+  atom_number(Lex, N).
 % sink
 hdt_term_count(Hdt, sink, N) :- !,
   maplist(hdt_term_count(Hdt), [shared,subject], [N1,N2]),
@@ -257,8 +244,8 @@ hdt_term_count(Hdt, source, N) :- !,
   N is N1 - N2.
 % others: node, object, subject, term
 hdt_term_count(Hdt, Role, N) :- !,
-  subroles_(Role, Subroles),
-  maplist(hdt_term_count(Hdt), Subroles, Ns),
+  aggregate_all(set(LeafRole), role_leafrole(Role, LeafRole), LeafRoles),
+  maplist(hdt_term_count(Hdt), LeafRoles, Ns),
   sum_list(Ns, N).
 
 header_role_property(object, '<http://rdfs.org/ns/void#distinctObjects>').
@@ -268,35 +255,35 @@ header_role_property(subject, '<http://rdfs.org/ns/void#distinctSubjects>').
 
 
 
-%! subrole_(+Role1:atom, +Subrole2:atom) is semidet.
-%! subrole_(+Role1:atom, -Subrole2:atom) is nondet.
+%! leafrole(+Role:atom) is semidet.
+%! leafrole(-Role:atom) is multi.
 
-subrole_(node, shared).
-subrole_(node, source).
-subrole_(node, sink).
-subrole_(object, shared).
-subrole_(object, sink).
-subrole_(subject, shared).
-subrole_(subject, source).
-subrole_(term, predicate).
-subrole_(term, node).
+leafrole(Role) :-
+  role_subrole(_, Role),
+  \+ role_subrole(Role, _).
 
 
 
-%! subroles_(+Role:atom, -Subroles:ordset(atom)) is det.
-%
-% @arg Subroles An ordered set of leaf nodes that are sub-roles of
-%      Role.
+%! role_leafrole(+Role:atom, -LeafRole:atom) is nondet.
 
-subroles_(Role1, Roles) :-
-  aggregate_all(
-    set(Role2),
-    (
-      closure(subrole_, Role1, Role2),
-      \+ subrole_(Role2, _)
-    ),
-    Roles
-  ).
+role_leafrole(Role, SubRole) :-
+  closure0(role_subrole, Role, SubRole),
+  leafrole(SubRole).
+
+
+
+%! role_subrole(+Role:atom, +SubRole:atom) is semidet.
+%! role_subrole(+Role:atom, -SubRole:atom) is nondet.
+
+role_subrole(node, shared).
+role_subrole(node, source).
+role_subrole(node, sink).
+role_subrole(object, shared).
+role_subrole(object, sink).
+role_subrole(subject, shared).
+role_subrole(subject, source).
+role_subrole(term, predicate).
+role_subrole(term, node).
 
 
 

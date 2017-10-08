@@ -2,10 +2,13 @@
   hdt_term,
   [
     hdt_term/3,            % +Hdt, +Role, ?Term
+    hdt_term/4,            % +Hdt, +Role, -LeafRole, ?Term
     hdt_term_count/3,      % +Hdt, +Role, ?Count
     hdt_term_prefix/4,     % +Hdt, +Role, +Prefix, ?Term
+    hdt_term_prefix/5,     % +Hdt, +Role, +Prefix, -LeafRole, ?Term
     hdt_term_random/3,     % +Hdt, +Role, -Term
-    hdt_term_translate/3,  % +Hdt, ?Term, ?Id
+    hdt_term_random/4,     % +Hdt, +Role, -LeafRole, -Term
+    hdt_term_translate/4,  % +Hdt, ?Term, +Role, ?Id
     hdt_triple/4,          % +Hdt, ?S, ?P, ?O
     hdt_triple_count/5,    % +Hdt, ?S, ?P, ?O, ?Count
     hdt_triple_random/4,   % +Hdt, ?S, ?P, ?O
@@ -36,21 +39,17 @@
 :- use_module(library(apply)).
 :- use_module(library(dcg/dcg_ext)).
 :- use_module(library(debug)).
-:- use_module(library(error)).
-:- use_module(library(filesex)).
 :- use_module(library(hdt_generic)).
 :- use_module(library(lists)).
-:- use_module(library(ordsets)).
-:- use_module(library(semweb/rdf11)).
-:- use_module(library(semweb/rdf_prefix), []).
+:- use_module(library(semweb/rdf_api)).
 :- use_module(library(semweb/rdf_print)).
-:- use_module(library(sgml)).
-:- use_module(library(uri)).
 
 :- rdf_meta
    hdt_term(+, +, r),
+   hdt_term(+, +, -, r),
    hdt_term_prefix(+, +, +, r),
-   hdt_term_translate(+, t, ?),
+   hdt_term_prefix(+, +, +, -, r),
+   hdt_term_translate(+, t, +, ?),
    hdt_triple(+, r, r, o),
    hdt_triple_count(+, r, r, o, ?),
    hdt_triple_random(+, r, r, o),
@@ -60,71 +59,86 @@
 
 
 
-%! hdt_term(+Hdt:blob, +Role, +Term) is semidet.
-%! hdt_term(+Hdt:blob, +Role, -Term) is nondet.
+%! hdt_term(+Hdt:blob, +Role:atom, +Term:compound) is semidet.
+%! hdt_term(+Hdt:blob, +Role:atom, -Term:compound) is nondet.
+%! hdt_term(+Hdt:blob, +Role:atom, -LeafRole:atom, +Term:compound) is semidet.
+%! hdt_term(+Hdt:blob, +Role:atom, -LeafRole:atom, -Term:compound) is nondet.
+
+hdt_term(Hdt, Role, Term) :-
+  hdt_term(Hdt, Role, _, Term).
+
 
 % predicate
-hdt_term(Hdt, predicate, Term) :-
+hdt_term(Hdt, predicate, predicate, Term) :-
   (   var(Term)
   ->  hdt_term_(Hdt, predicate, Term)
   ;   hdt_triple_(Hdt, content, _, Term, _)
   ).
 % shared
-hdt_term(Hdt, shared, Term) :-
+hdt_term(Hdt, shared, shared, Term) :-
   (   var(Term)
   ->  hdt_term_(Hdt, shared, Atom)
   ;   pre_term(Hdt, Term, Atom),
       hdt_triple_(Hdt, content, Atom, _, _),
       hdt_triple_(Hdt, content, _, _, Atom)
   ),
-  post_term(Term, Atom).
+  rdf_atom_to_term(Atom, Term).
 % sink
-hdt_term(Hdt, sink, Term) :-
+hdt_term(Hdt, sink, sink, Term) :-
   (   var(Term)
   ->  hdt_term_(Hdt, sink, Atom)
   ;   pre_term(Hdt, Term, Atom),
       hdt_triple_(Hdt, content, _, _, Atom),
       \+ hdt_triple_(Hdt, content, Atom, _, _)
   ),
-  post_term(Term, Atom).
+  rdf_atom_to_term(Atom, Term).
 % source
-hdt_term(Hdt, source, Term) :-
+hdt_term(Hdt, source, source, Term) :-
   (   var(Term)
   ->  hdt_term_(Hdt, source, Atom)
   ;   pre_term(Hdt, Term, Atom),
       hdt_triple_(Hdt, content, Atom, _, _),
       \+ hdt_triple_(Hdt, content, _, _, Atom)
   ),
-  post_term(Term, Atom).
+  rdf_atom_to_term(Atom, Term).
 % others: node, object, subject, term
-hdt_term(Hdt, Role1, Term) :-
-  subrole_(Role1, Role2),
-  hdt_term(Hdt, Role2, Term).
+hdt_term(Hdt, Role, LeafRole, Term) :-
+  role_subrole(Role, SubRole),
+  hdt_term(Hdt, SubRole, LeafRole, Term).
 
 
 
-%! hdt_term_prefix(+Hdt:blob, +Role, +Prefix:atom, ?Term) is nondet.
+%! hdt_term_prefix(+Hdt:blob, +Role:atom, +Prefix:atom, ?Term:compound) is nondet.
+%! hdt_term_prefix(+Hdt:blob, +Role:atom, +Prefix:atom, -LeafRole:atom,
+%!                 ?Term:compound) is nondet.
 
-hdt_term_prefix(Hdt, Role1, Prefix, Term) :-
-  subrole_(Role1, Role2),
-  hdt_term_prefix(Hdt, Role2, Prefix, Term).
 hdt_term_prefix(Hdt, Role, Prefix, Term) :-
-  hdt_term_prefix_(Hdt, Role, Prefix, Atom),
-  post_term(Term, Atom).
+  hdt_term_prefix(Hdt, Role, Prefix, _, Term).
+
+
+hdt_term_prefix(Hdt, Role, Prefix, LeafRole, Term) :-
+  role_leafrole(Role, LeafRole),
+  hdt_term_prefix_(Hdt, LeafRole, Prefix, Atom),
+  rdf_atom_to_term(Atom, Term).
 
 
 
-%! hdt_term_random(+Hdt:blob, +Role, -Term) is nondet.
+%! hdt_term_random(+Hdt:blob, +Role:atom, -Term:compound) is nondet.
+%! hdt_term_random(+Hdt:blob, +Role:atom, -LeafRole:atom, -Term:compound) is nondet.
 
 hdt_term_random(Hdt, Role, Term) :-
-  subroles_(Role, Roles),
-  maplist(hdt_term_count(Hdt), Roles, Counts),
+  hdt_term_random(Hdt, Role, _, Term).
+
+
+hdt_term_random(Hdt, Role, LeafRole, Term) :-
+  aggregate_all(set(LeafRole), role_leafrole(Role, LeafRole), LeafRoles),
+  maplist(hdt_term_count(Hdt), LeafRoles, Counts),
   sum_list(Counts, Count),
   random_between(1, Count, Index),
-  index_role(Index, Counts, Roles, RndRole),
+  index_role(Index, Counts, LeafRoles, LeafRole),
   Rnd is random_float,
-  hdt_term_random_(Hdt, RndRole, Rnd, Atom),
-  post_term(Term, Atom).
+  hdt_term_random_(Hdt, LeafRole, Rnd, Atom),
+  rdf_atom_to_term(Atom, Term).
 
 index_role(N, [Count|_], [Role|_], Role) :-
   N =< Count, !.
@@ -134,11 +148,12 @@ index_role(N1, [H|T1], [_|T2], Role) :-
 
 
 
-%! hdt_term_translate(+Hdt:blob, +Term:rdf_term, +Id:compound) is semidet.
-%! hdt_term_translate(+Hdt:blob, +Term:rdf_term, -Id:compound) is det.
-%! hdt_term_translate(+Hdt:blob, -Term:rdf_term, +Id:compound) is det.
+%! hdt_term_translate(+Hdt:blob, +Term:rdf_term, +Role:atom, +Id:compound) is semidet.
+%! hdt_term_translate(+Hdt:blob, +Term:rdf_term, +Role:atom, -Id:compound) is det.
+%! hdt_term_translate(+Hdt:blob, -Term:rdf_term, +Role:atom, +Id:compound) is det.
 %
-% @arg Id A compound term of the form id(+Role:atom,?Id:positive_integer).
+% @arg Id A compound term of the form
+%      `id(+Role:oneof([object,predicate,subject]),?Id:positive_integer)'.
 %
 % Notice that the Role _must_ be specified as part of the Id compound
 % term:
@@ -147,10 +162,11 @@ index_role(N1, [H|T1], [_|T2], Role) :-
 % hdt_term_translate($Hdt, $Term, id(object,Id))
 % ```
 
-hdt_term_translate(Hdt, Term, id(Role,Id)) :-
+hdt_term_translate(Hdt, Term, Role, id(LeafRole,Id)) :-
+  role_leafrole(Role, LeafRole),
   pre_term(Hdt, Term, Atom),
-  hdt_term_translate_(Hdt, Role, Atom, Id),
-  post_term(Term, Atom).
+  hdt_term_translate_(Hdt, LeafRole, Atom, Id),
+  rdf_atom_to_term(Atom, Term).
 
 
 
@@ -161,7 +177,7 @@ hdt_term_translate(Hdt, Term, id(Role,Id)) :-
 hdt_triple(Hdt, S, P, O) :-
   pre_term(Hdt, O, OAtom),
   hdt_triple_(Hdt, content, S, P, OAtom),
-  post_term(O, OAtom),
+  rdf_atom_to_term(OAtom, O),
   (   debugging(hdt_term)
   ->  dcg_debug(hdt_term, ("TP ",rdf_dcg_triple(S,P,O)))
   ;   true
@@ -184,7 +200,7 @@ hdt_triple_random(Hdt, S, P, O) :-
   pre_term(Hdt, O, OAtom),
   Rnd is random_float,
   hdt_triple_random_(Hdt, Rnd, S, P, OAtom),
-  post_term(O, OAtom),
+  rdf_atom_to_term(OAtom, O),
   (   debugging(hdt_term)
   ->  dcg_debug(hdt_term, ("random ",rdf_dcg_triple(S,P,O)))
   ;   true
@@ -192,13 +208,16 @@ hdt_triple_random(Hdt, S, P, O) :-
 
 
 
-%! hdt_triple_translate(+Hdt:blob, +TermTriple:compound,
-%!                      -IdTriple:compound) is det.
-%! hdt_triple_translate(+Hdt:blob, -TermTriple:compound,
-%!                      +IdTriple:compound) is det.
+%! hdt_triple_translate(+Hdt:blob, +TermTriple:compound, -IdTriple:compound) is det.
+%! hdt_triple_translate(+Hdt:blob, -TermTriple:compound, +IdTriple:compound) is det.
 
 hdt_triple_translate(Hdt, rdf(S,P,O), rdf(SId,PId,OId)) :-
-  maplist(hdt_term_translate(Hdt), [S,P,O], [SId,PId,OId]).
+  maplist(
+    hdt_term_translate(Hdt),
+    [S,P,O],
+    [subject,predicate,object],
+    [SId,PId,OId]
+  ).
 
 
 
@@ -231,34 +250,3 @@ pre_term(Hdt, literal(type(D,Lex)), Atom) :- !,
 pre_term(_, literal(Lex), Atom) :- !,
   atomic_list_concat(['"',Lex,'"'], Atom).
 pre_term(_, NonLiteral, NonLiteral).
-
-
-
-%! post_term(?O:rdf_term, +Atom:atom) is det.
-
-post_term(O, Atom1) :-
-  atom_concat('"', Atom2, Atom1), !,
-  atom_codes(Atom2, Codes),
-  phrase(post_literal(O), Codes).
-post_term(NonLiteral, NonLiteral).
-
-post_literal(Literal) -->
-  string(Codes1),
-  "\"", !,
-  {atom_codes(Lex, Codes1)},
-  (   "^"
-  ->  "^<",
-      string(Codes2),
-      ">", !,
-      {
-        atom_codes(D, Codes2),
-        Literal = literal(type(D,Lex))
-      }
-  ;   "@"
-  ->  remainder(Codes2),
-      {
-        atom_codes(LTag, Codes2),
-        Literal = literal(lang(LTag,Lex))
-      }
-  ;   {Literal = literal(Lex)}
-  ).
