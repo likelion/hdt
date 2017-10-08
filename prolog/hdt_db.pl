@@ -240,7 +240,7 @@ post_literal(Literal) -->
   (   "^"
   ->  "^<",
       string(Codes2),
-      ">",
+      ">", !,
       {
         atom_codes(D, Codes2),
         Literal = literal(type(D,Lex))
