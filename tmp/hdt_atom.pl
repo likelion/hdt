@@ -1,18 +1,12 @@
 :- module(
   hdt_atom,
   [
-    hdt_close/1,           % +Hdt
-    hdt_create/2,          % +RdfFile, -HdtFile
-    hdt_open/2,            % +HdtFile, -Hdt
     hdt_term/3,            % +Hdt, +Role, ?Term
-    hdt_term_count/3,      % +Hdt, ?Role, ?Count
     hdt_term_prefix/3,     % +Hdt, +Prefix, ?Term
     hdt_term_random/3,     % +Hdt, +Role, -Term
-    hdt_term_translate/3,  % +Hdt, ?RdfTerm, ?HdtTerm
     hdt_triple/4,          % +Hdt, ?S, ?P, ?O
     hdt_triple_count/5,    % +Hdt, ?S, ?P, ?O, ?Count
     hdt_triple_random/4,   % +Hdt, ?S, ?P, ?O
-    hdt_triple_translate/3 % +Hdt, ?RdfTriple, ?HdtTriple
   ]
 ).
 :- reexport(library(semweb/rdf11)).
@@ -38,37 +32,6 @@
 :- use_foreign_library(foreign(hdt4pl)).
 
 
-
-
-
-%! hdt_close(+Hdt:blob) is det.
-
-hdt_close(Hdt) :-
-  hdt_close_(Hdt).
-
-
-
-%! hdt_create(+RdfFile:atom, ?HdtFile:atom) is det.
-
-hdt_create(RdfFile, HdtFile) :-
-  (   var(HdtFile)
-  ->  directory_file_path(Dir, RdfLocal, RdfFile),
-      atomic_list_concat(Segments1, ., RdfLocal),
-      % NOTE: does not auto-detect that this is deterministic :(
-      once(append(Segments2, [_], Segments1)),
-      atomic_list_concat(Segments2, ., Base),
-      file_name_extension(Base, hdt, HdtLocal),
-      directory_file_path(Dir, HdtLocal, HdtFile)
-  ;   true
-  ),
-  hdt_create_(HdtFile, RdfFile, []).
-
-
-
-%! hdt_open(+HdtFile:atom, -Hdt:blob) is det.
-
-hdt_open(HdtFile, Hdt) :-
-  hdt_open_(HdtFile, Hdt, []).
 
 
 
@@ -117,43 +80,6 @@ hdt_term(Hdt, subject, Term) :-
   (   hdt_term(Hdt, source, Term)
   ;   hdt_term(Hdt, shared, Term)
   ).
-
-
-
-%! hdt_term_count(+Hdt:blob, +Role, ?Count:nonneg) is det.
-
-% node
-hdt_term_count(Hdt, node, Count) :- !,
-  maplist(hdt_term_count(Hdt), [shared,sink,source], Counts),
-  sum_list(Counts, Count).
-% object
-hdt_term_count(Hdt, object, Count) :- !,
-  once(header(Hdt, _, '<http://rdfs.org/ns/void#distinctObjects>', Count0)),
-  Count0 = Count^^_.
-% predicate
-hdt_term_count(Hdt, predicate, Count) :- !,
-  once(header(Hdt, _, '<http://rdfs.org/ns/void#properties>', Count0)),
-  Count0 = Count^^_.
-% shared
-hdt_term_count(Hdt, shared, Count) :- !,
-  once(header(Hdt, _, '<http://purl.org/HDT/hdt#dictionarynumSharedSubjectObject>', Count0)),
-  Count0 = Count^^_.
-% sink
-hdt_term_count(Hdt, sink, Count) :- !,
-  maplist(hdt_term_count(Hdt), [shared,subject], [Count1,Count2]),
-  Count is Count2 - Count1.
-% source
-hdt_term_count(Hdt, source, Count) :- !,
-  maplist(hdt_term_count(Hdt), [object,shared], [Count1,Count2]),
-  Count is Count1 - Count2.
-% subject
-hdt_term_count(Hdt, subject, Count) :- !,
-  once(header(Hdt, _, '<http://rdfs.org/ns/void#distinctSubjects>', Count0)),
-  Count0 = Count^^_.
-% term
-hdt_term_count(Hdt, term, Count) :-
-  maplist(hdt_term_count(Hdt), [predicate,node], Counts),
-  sum_list(Counts, Count).
 
 
 

@@ -38,8 +38,7 @@
 #include <iostream>
 #include <HDTManager.hpp>
 #include <assert.h>
-#include <ctime>
-#include <random>
+#include <cmath>
 
 using namespace std;
 using namespace hdt;
@@ -47,7 +46,6 @@ using namespace hdt;
 static void deleteHDT(HDT *hdt);
 static int get_dict_section(term_t t, DictionarySection *section);
 static int get_triple_role(term_t t, TripleComponentRole *role);
-static mt19937 randomGenerator(time(0));
 static int unify_string(term_t t, const char *s);
 
 #define CATCH_HDT \
@@ -58,6 +56,8 @@ static int unify_string(term_t t, const char *s);
 	} catch (exception& e)		\
 	{ return hdt_error(e.what());		\
 	}
+
+#define CVT_TEXT ( CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8 )
 
 extern "C" {
 
@@ -92,6 +92,7 @@ static atom_t ATOM_format;
 static atom_t ATOM_nquads;
 static atom_t ATOM_ntriples;
 static atom_t ATOM_turtle;
+static atom_t ATOM_n3;
 
 static functor_t FUNCTOR_rdftype2;
 static functor_t FUNCTOR_rdflang2;
@@ -198,6 +199,11 @@ install_hdt4pl(void)
   MKATOM(base_uri);
   MKATOM(source);
   MKATOM(sink);
+  MKATOM(format);
+  MKATOM(nquads);
+  MKATOM(ntriples);
+  MKATOM(turtle);
+  MKATOM(n3);
 
   FUNCTOR_rdftype2 = PL_new_functor(PL_new_atom("^^"), 2);
   FUNCTOR_rdflang2 = PL_new_functor(PL_new_atom("@"), 2);
@@ -230,14 +236,11 @@ PREDICATE(hdt_open_, 3)
   PlTail options(A3);
   PlTerm opt;
   char *name;
-
   while(options.next(opt))
   { atom_t name;
     size_t arity;
-
     if ( PL_get_name_arity(opt, &name, &arity) && arity == 1 )
     { PlTerm ov = opt[1];
-
       if ( name == ATOM_access )
       { if ( !PL_get_atom_ex(ov, &access) )
 	  return FALSE;
@@ -248,10 +251,8 @@ PREDICATE(hdt_open_, 3)
     } else
       return PL_type_error("option", opt);
   }
-
   if ( !PL_get_file_name(A1, &name, PL_FILE_EXIST) )
     return FALSE;
-
   try
   { if ( access == ATOM_map )
     { if ( indexed )
@@ -270,11 +271,9 @@ PREDICATE(hdt_open_, 3)
       return PL_domain_error("hdt_access", ex);
     }
   } CATCH_HDT;
-
   hdt_wrapper *symb = (hdt_wrapper*)PL_malloc(sizeof(*symb));
   memset(symb, 0, sizeof(*symb));
   symb->hdt = hdt;
-
   return PL_unify_blob(A2, symb, sizeof(*symb), &hdt_blob);
 }
 
@@ -312,12 +311,12 @@ get_hdt_string(term_t t, char **s, unsigned flag, unsigned *flagp)
   } else
   { size_t len;
 
-    return PL_get_nchars(t, &len, s, CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8);
+    return PL_get_nchars(t, &len, s, CVT_TEXT);
   }
 }
 
-// hdt_(+HDT, +Where, ?S, ?P, ?O)
-PREDICATE_NONDET(hdt_, 5)
+// hdt_triple_(+HDT, +Where, ?S, ?P, ?O)
+PREDICATE_NONDET(hdt_triple_, 5)
 { hdt_wrapper *symb;
   search_it ctx_buf = {0};
   search_it *ctx;
@@ -381,8 +380,8 @@ static int unify_string(term_t t, const char *s)
 }
 
 
-// hdt_prefix_(+HDT, +Role, +Prefix, -Term)
-PREDICATE_NONDET(hdt_prefix_, 4)
+// hdt_term_prefix_(+HDT, +Role, +Prefix, -Term)
+PREDICATE_NONDET(hdt_term_prefix_, 4)
 { IteratorUCharString *it;
   switch(PL_foreign_control(handle))
   { case PL_FIRST_CALL:
@@ -392,8 +391,7 @@ PREDICATE_NONDET(hdt_prefix_, 4)
       size_t len;
       if ( !get_hdt(A1, &symb) ||
            !get_triple_role(A2, &role) ||
-           !PL_get_nchars(A3, &len, &prefix,
-                          CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8) )
+           !PL_get_nchars(A3, &len, &prefix, CVT_TEXT) )
         return FALSE;
       try
       { it = symb->hdt->getDictionary()->getSuggestions(prefix, role);
@@ -422,8 +420,8 @@ PREDICATE_NONDET(hdt_prefix_, 4)
 }
 
 
-// hdt_prefix_id_(+Hdt, +Role, +Prefix, -Id)
-PREDICATE_NONDET(hdt_prefix_id_, 4)
+// hdt_term_prefix_id_(+Hdt, +Role, +Prefix, -Id)
+PREDICATE_NONDET(hdt_term_prefix_id_, 4)
 { IteratorUInt *it;
   switch(PL_foreign_control(handle)) {
   case PL_FIRST_CALL:
@@ -434,8 +432,7 @@ PREDICATE_NONDET(hdt_prefix_id_, 4)
       size_t len;
       if ( !get_hdt(A1, &symb) ||
            !get_triple_role(A2, &role) ||
-           !PL_get_nchars(A3, &len, &prefix,
-                          CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8) )
+           !PL_get_nchars(A3, &len, &prefix, CVT_TEXT) )
         return FALSE;
       try {
         it = symb->hdt->getDictionary()->getIDSuggestions(prefix, role);
@@ -450,8 +447,7 @@ PREDICATE_NONDET(hdt_prefix_id_, 4)
     {
       if ( it->hasNext() ) {
         unsigned int id = it->next();
-        int rc;
-        rc = PL_unify_integer(A4, id);
+        int rc = PL_unify_integer(A4, id);
         if ( rc )
           PL_retry_address((void*) it);
       }
@@ -563,41 +559,41 @@ PREDICATE_NONDET(hdt_term_, 3)
 }
 
 
-// hdt_term_rnd_(+Hdt, +Role, -Term)
-PREDICATE(hdt_term_rnd_, 3)
+// hdt_term_random_(+Hdt, +Role, +Rnd, -Term)
+PREDICATE(hdt_term_random_, 4)
 {
   hdt_wrapper *symb;
   DictionarySection section;
+  double rnd;
   if ( !get_hdt(A1, &symb) ||
-       !get_dict_section(A2, &section) ) {
+       !get_dict_section(A2, &section) ||
+       !PL_get_float(A3, &rnd) )
     return FALSE;
-  }
   try {
-    Dictionary *dict {symb->hdt->getDictionary()};
-    long min, max;
+    Dictionary *dict = symb->hdt->getDictionary();
+    unsigned int min, max;
     TripleComponentRole role;
     if ( section == NOT_SHARED_OBJECT ) {
-      min = (long) dict->getNshared() + 1;
-      max = (long) dict->getMaxObjectID();
+      min = dict->getNshared() + 1;
+      max = dict->getMaxObjectID();
       role = OBJECT;
     } else if ( section == NOT_SHARED_SUBJECT ) {
-      min = (long) dict->getNshared() + 1;
-      max = (long) dict->getMaxSubjectID();
+      min = dict->getNshared() + 1;
+      max = dict->getMaxSubjectID();
       role = SUBJECT;
     } else if ( section == NOT_SHARED_PREDICATE ) {
       min = 1;
-      max = (long) dict->getNpredicates();
+      max = dict->getNpredicates();
       role = PREDICATE;
     } else if ( section == SHARED_SUBJECT ) {
       min = 1;
-      max = (long) dict->getNshared();
+      max = dict->getNshared();
       // We can pick either subject or object here.
       role = SUBJECT;
     }
-    uniform_int_distribution<unsigned int> distribution(min, max);
-    unsigned int index {distribution(randomGenerator)};
+    size_t index = floor(rnd * (max - min) + min);
     Sprintf("%d from %d..%d\n", index, min, max);
-    string str {dict->idToString((size_t)index, role)};
+    string str {dict->idToString((size_t) index, role)};
     if ( !str.empty() ) {
       return PL_unify_chars(A3, PL_ATOM|REP_UTF8, (size_t)-1, str.c_str());
     }
@@ -606,32 +602,33 @@ PREDICATE(hdt_term_rnd_, 3)
 }
 
 
-// hdt_term_rnd_id_(+Hdt, +Role, -Id)
-PREDICATE(hdt_term_rnd_id_, 3)
+// hdt_term_random_id_(+Hdt, +Role, +Rnd, -Id)
+PREDICATE(hdt_term_random_id_, 4)
 { hdt_wrapper *symb;
   DictionarySection section;
+  double rnd;
   if ( !get_hdt(A1, &symb) ||
-       !get_dict_section(A2, &section) ) {
+       !get_dict_section(A2, &section) ||
+       !PL_get_float(A3, &rnd) ) {
     return FALSE;
   }
   try {
     Dictionary *dict = symb->hdt->getDictionary();
-    long min, max;
+    unsigned int min, max;
     if ( section == NOT_SHARED_OBJECT ) {
-      min = (long) dict->getNshared() + 1;
-      max = (long) dict->getMaxObjectID();
+      min = dict->getNshared() + 1;
+      max = dict->getMaxObjectID();
     } else if ( section == NOT_SHARED_SUBJECT ) {
-      min = (long) dict->getNshared() + 1;
-      max = (long) dict->getMaxSubjectID();
+      min = dict->getNshared() + 1;
+      max = dict->getMaxSubjectID();
     } else if ( section == NOT_SHARED_PREDICATE ) {
       min = 1;
-      max = (long) dict->getNpredicates();
+      max = dict->getNpredicates();
     } else if ( section == SHARED_SUBJECT ) {
       min = 1;
-      max = (long) dict->getNshared();
+      max = dict->getNshared();
     }
-    uniform_int_distribution<unsigned int> distribution(min, max);
-    unsigned int index = distribution(randomGenerator);
+    unsigned int index = floor(rnd * (max - min) + min);
     Sprintf("%d from 0..%d\n", index, max);
     return PL_unify_integer(A3, index);
   } CATCH_HDT;
@@ -651,7 +648,10 @@ static int get_serialization_format(term_t t, RDFNotation *format)
     *format = NQUAD;
   } else if ( name == ATOM_turtle ) {
     *format = TURTLE;
+  } else {
+    return PL_domain_error("rdf_format", t);
   }
+  return TRUE;
 }
 
 
@@ -703,8 +703,8 @@ static int get_dict_section(term_t t, DictionarySection *section)
 }
 
 
-// hdt_dict_(+HDT, +Role, ?String, ?Id)
-PREDICATE(hdt_dict_, 4)
+// hdt_term_translate_(+HDT, +Role, ?String, ?Id)
+PREDICATE(hdt_term_translate_, 4)
 { hdt_wrapper *symb;
   TripleComponentRole role;
   size_t len;
@@ -759,8 +759,8 @@ get_hdt_id(term_t t, size_t *id, unsigned flag, unsigned *flagp)
 
 
 
-// hdt_id_(+HDT, ?SId, ?PId, ?OId)
-PREDICATE_NONDET(hdt_id_, 4)
+// hdt_triple_id_(+HDT, ?SId, ?PId, ?OId)
+PREDICATE_NONDET(hdt_triple_id_, 4)
 { hdt_wrapper *symb;
   searchid_it ctx_buf = {0};
   searchid_it *ctx;
@@ -857,33 +857,33 @@ PREDICATE(hdt_count_id_, 5)
 }
 
 
-// hdt_rnd_(+HDT, ?S, ?P, ?O)
-PREDICATE(hdt_rnd_, 4)
+// hdt_triple_random_(+HDT, +Rnd, ?S, ?P, ?O)
+PREDICATE(hdt_triple_random_, 5)
 {
   hdt_wrapper *symb;
   unsigned int flags = 0;
   char *s, *p, *o;
+  double rnd;
   if ( !get_hdt(A1, &symb) ||
-       !get_hdt_string(A2, &s, S_S, &flags) ||
-       !get_hdt_string(A3, &p, S_P, &flags) ||
-       !get_hdt_string(A4, &o, S_O, &flags) )
+       !PL_get_float(A2, &rnd) ||
+       !get_hdt_string(A3, &s, S_S, &flags) ||
+       !get_hdt_string(A4, &p, S_P, &flags) ||
+       !get_hdt_string(A5, &o, S_O, &flags) )
     return FALSE;
   try {
     IteratorTripleString *it {symb->hdt->search(s,p,o)};
     size_t count {it->estimatedNumResults()};
     if (count == 0)
       return FALSE;
-    size_t max {count-1};
-    uniform_int_distribution<unsigned int> distribution(0, max);
-    unsigned int index {distribution(randomGenerator)};
-    Sprintf("%d from 0..%d\n", index, max);
+    size_t index {floor(rnd * (count - 1) + 1)};
+    Sprintf("%d from 0..%d\n", index, count-1);
     it->skip(index);
     if (it->hasNext()) {
       TripleString *t {it->next()};
       bool rc =
-        ( (!(flags&S_S) || unify_string(A2, t->getSubject().c_str())) &&
-          (!(flags&S_P) || unify_string(A3, t->getPredicate().c_str())) &&
-          (!(flags&S_O) || unify_string(A4, t->getObject().c_str())) );
+        ( (!(flags&S_S) || unify_string(A3, t->getSubject().c_str())) &&
+          (!(flags&S_P) || unify_string(A4, t->getPredicate().c_str())) &&
+          (!(flags&S_O) || unify_string(A5, t->getObject().c_str())) );
       delete it;
       return rc;
     }
@@ -892,16 +892,18 @@ PREDICATE(hdt_rnd_, 4)
 }
 
 
-// hdt_rnd_id_(+HDT, ?SId, ?PId, ?OId)
-PREDICATE(hdt_rnd_id_, 4)
+// hdt_triple_random_id_(+HDT, +Rnd, ?SId, ?PId, ?OId)
+PREDICATE(hdt_triple_random_id_, 5)
 {
   hdt_wrapper *symb;
   unsigned int flags = 0;
   size_t s, p, o;
+  double rnd;
   if ( !get_hdt(A1, &symb) ||
-       !get_hdt_id(A2, &s, S_S, &flags) ||
-       !get_hdt_id(A3, &p, S_P, &flags) ||
-       !get_hdt_id(A4, &o, S_O, &flags) )
+       !PL_get_float(A2, &rnd) ||
+       !get_hdt_id(A3, &s, S_S, &flags) ||
+       !get_hdt_id(A4, &p, S_P, &flags) ||
+       !get_hdt_id(A5, &o, S_O, &flags) )
     return FALSE;
   try {
     TripleID pattern(s, p, o);
@@ -909,17 +911,15 @@ PREDICATE(hdt_rnd_id_, 4)
     size_t count {it->estimatedNumResults()};
     if (count == 0)
       return FALSE;
-    size_t max {count-1};
-    uniform_int_distribution<unsigned int> distribution(0, max);
-    unsigned int index {distribution(randomGenerator)};
-    Sprintf("%d from 0..%d\n", index, max);
+    size_t index {floor(rnd * (count - 1) + 1)};
+    Sprintf("%d from 0..%d\n", index, count-1);
     it->skip(index);
     if (it->hasNext()) {
       TripleID *t {it->next()};
       bool rc =
-        ( (!(flags&S_S) || PL_unify_integer(A2, t->getSubject())) &&
-          (!(flags&S_P) || PL_unify_integer(A3, t->getPredicate())) &&
-          (!(flags&S_O) || PL_unify_integer(A4, t->getObject())) );
+        ( (!(flags&S_S) || PL_unify_integer(A3, t->getSubject())) &&
+          (!(flags&S_P) || PL_unify_integer(A4, t->getPredicate())) &&
+          (!(flags&S_O) || PL_unify_integer(A5, t->getObject())) );
       delete it;
       return rc;
     }
@@ -961,8 +961,7 @@ PREDICATE(hdt_create_, 3)
 
       if ( name == ATOM_base_uri ) {
         size_t len;
-	if ( !PL_get_nchars(ov, &len, &base_uri,
-			    CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8) )
+	if ( !PL_get_nchars(ov, &len, &base_uri, CVT_TEXT) )
 	  return FALSE;
       } else if ( name == ATOM_format ) {
         if ( !get_serialization_format(ov, &format) ) {
