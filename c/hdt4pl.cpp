@@ -38,6 +38,7 @@
 #include <iostream>
 #include <HDTManager.hpp>
 #include <assert.h>
+#include <cmath>
 
 using namespace std;
 using namespace hdt;
