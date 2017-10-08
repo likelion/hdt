@@ -34,6 +34,7 @@ API.
 :- use_module(library(lists)).
 :- use_module(library(option)).
 :- use_module(library(semweb/rdf_api)).
+:- use_module(library(uri)).
 
 :- use_foreign_library(foreign(hdt4pl)).
 

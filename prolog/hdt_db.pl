@@ -8,7 +8,7 @@
     hdt_term_prefix/5,     % +Hdt, +Role, +Prefix, -LeafRole, ?Term
     hdt_term_random/3,     % +Hdt, +Role, -Term
     hdt_term_random/4,     % +Hdt, +Role, -LeafRole, -Term
-    hdt_term_translate/4,  % +Hdt, ?Term, +Role, ?Id
+    hdt_term_translate/4,  % +Hdt, +Role, ?Term, ?Id
     hdt_triple/4,          % +Hdt, ?S, ?P, ?O
     hdt_triple_count/5,    % +Hdt, ?S, ?P, ?O, ?Count
     hdt_triple_random/4,   % +Hdt, ?S, ?P, ?O
@@ -49,7 +49,7 @@
    hdt_term(+, +, -, r),
    hdt_term_prefix(+, +, +, r),
    hdt_term_prefix(+, +, +, -, r),
-   hdt_term_translate(+, t, +, ?),
+   hdt_term_translate(+, +, t, ?),
    hdt_triple(+, r, r, o),
    hdt_triple_count(+, r, r, o, ?),
    hdt_triple_random(+, r, r, o),
@@ -148,24 +148,11 @@ index_role(N1, [H|T1], [_|T2], Role) :-
 
 
 
-%! hdt_term_translate(+Hdt:blob, +Term:rdf_term, +Role:atom, +Id:compound) is semidet.
-%! hdt_term_translate(+Hdt:blob, +Term:rdf_term, +Role:atom, -Id:compound) is det.
-%! hdt_term_translate(+Hdt:blob, -Term:rdf_term, +Role:atom, +Id:compound) is det.
-%
-% @arg Id A compound term of the form
-%      `id(+Role:oneof([object,predicate,subject]),?Id:positive_integer)'.
-%
-% Notice that the Role _must_ be specified as part of the Id compound
-% term:
-%
-% ```prolog
-% hdt_term_translate($Hdt, $Term, id(object,Id))
-% ```
+%! hdt_term_translate(+Hdt:blob, +Role:atom, ?Term:rdf_term, ?Id:compound) is det.
 
-hdt_term_translate(Hdt, Term, Role, id(LeafRole,Id)) :-
-  role_leafrole(Role, LeafRole),
+hdt_term_translate(Hdt, Role, Term, Id) :-
   pre_term(Hdt, Term, Atom),
-  hdt_term_translate_(Hdt, LeafRole, Atom, Id),
+  hdt_term_translate_(Hdt, Role, Atom, Id),
   rdf_atom_to_term(Atom, Term).
 
 
@@ -211,11 +198,15 @@ hdt_triple_random(Hdt, S, P, O) :-
 %! hdt_triple_translate(+Hdt:blob, +TermTriple:compound, -IdTriple:compound) is det.
 %! hdt_triple_translate(+Hdt:blob, -TermTriple:compound, +IdTriple:compound) is det.
 
-hdt_triple_translate(Hdt, rdf(S,P,O), rdf(SId,PId,OId)) :-
+hdt_triple_translate(
+  Hdt,
+  rdf(S,P,O),
+  rdf(id(subject,SId),id(predicate,PId),id(object,OId))
+) :-
   maplist(
     hdt_term_translate(Hdt),
-    [S,P,O],
     [subject,predicate,object],
+    [S,P,O],
     [SId,PId,OId]
   ).
 
