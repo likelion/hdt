@@ -709,19 +709,17 @@ PREDICATE(hdt_term_translate_, 4)
   TripleComponentRole role;
   size_t len;
   char *s;
-  if ( !get_hdt(A1, &symb) ||
-       !get_triple_role(A2, &role) )
+  if ( !get_hdt(A1, &symb) || !get_triple_role(A2, &role) )
     return FALSE;
   unsigned int id;
   try {
     Dictionary *dict = symb->hdt->getDictionary();
     if ( !PL_is_variable(A3) ) {
-      if ( PL_get_nchars(A3, &len, &s,
-			 CVT_ATOM|CVT_STRING|REP_UTF8|CVT_EXCEPTION) ) {
+      if ( PL_get_nchars(A3, &len, &s, CVT_TEXT) ) {
         string str(s);
-	id = dict->stringToId(str, role);
-	if ( id )
-	  return (A4 = (long) id); // signed/unsigned mismatch
+        id = dict->stringToId(str, role);
+        if ( id )
+          return (A4 = (long) id); // signed/unsigned mismatch
       }
     } else {
       string str = dict->idToString((size_t)(long)A4, role);
