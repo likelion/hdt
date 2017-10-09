@@ -16,6 +16,7 @@
   ]
 ).
 :- reexport(library(hdt_generic), [
+     hdt_atom_to_term/2,
      hdt_close/1,
      hdt_create/2,
      hdt_create/3,
@@ -82,7 +83,7 @@ hdt_term(Hdt, shared, shared, Term) :-
       hdt_triple_(Hdt, content, Atom, _, _),
       hdt_triple_(Hdt, content, _, _, Atom)
   ),
-  rdf_atom_to_term(Atom, Term).
+  hdt_atom_to_term(Atom, Term).
 % sink
 hdt_term(Hdt, sink, sink, Term) :-
   (   var(Term)
@@ -91,7 +92,7 @@ hdt_term(Hdt, sink, sink, Term) :-
       hdt_triple_(Hdt, content, _, _, Atom),
       \+ hdt_triple_(Hdt, content, Atom, _, _)
   ),
-  rdf_atom_to_term(Atom, Term).
+  hdt_atom_to_term(Atom, Term).
 % source
 hdt_term(Hdt, source, source, Term) :-
   (   var(Term)
@@ -100,7 +101,7 @@ hdt_term(Hdt, source, source, Term) :-
       hdt_triple_(Hdt, content, Atom, _, _),
       \+ hdt_triple_(Hdt, content, _, _, Atom)
   ),
-  rdf_atom_to_term(Atom, Term).
+  hdt_atom_to_term(Atom, Term).
 % others: node, object, subject, term
 hdt_term(Hdt, Role, LeafRole, Term) :-
   role_subrole(Role, SubRole),
@@ -119,7 +120,7 @@ hdt_term_prefix(Hdt, Role, Prefix, Term) :-
 hdt_term_prefix(Hdt, Role, Prefix, LeafRole, Term) :-
   role_leafrole(Role, LeafRole),
   hdt_term_prefix_(Hdt, LeafRole, Prefix, Atom),
-  rdf_atom_to_term(Atom, Term).
+  hdt_atom_to_term(Atom, Term).
 
 
 
@@ -138,7 +139,7 @@ hdt_term_random(Hdt, Role, LeafRole, Term) :-
   index_role(Index, Counts, LeafRoles, LeafRole),
   Rnd is random_float,
   hdt_term_random_(Hdt, LeafRole, Rnd, Atom),
-  rdf_atom_to_term(Atom, Term).
+  hdt_atom_to_term(Atom, Term).
 
 index_role(N, [Count|_], [Role|_], Role) :-
   N =< Count, !.
@@ -153,7 +154,7 @@ index_role(N1, [H|T1], [_|T2], Role) :-
 hdt_term_translate(Hdt, Role, Term, Id) :-
   pre_term(Hdt, Term, Atom),
   hdt_term_translate_(Hdt, Role, Atom, Id),
-  rdf_atom_to_term(Atom, Term).
+  hdt_atom_to_term(Atom, Term).
 
 
 
@@ -164,7 +165,7 @@ hdt_term_translate(Hdt, Role, Term, Id) :-
 hdt_triple(Hdt, S, P, O) :-
   pre_term(Hdt, O, OAtom),
   hdt_triple_(Hdt, content, S, P, OAtom),
-  rdf_atom_to_term(OAtom, O),
+  hdt_atom_to_term(OAtom, O),
   (   debugging(hdt_term)
   ->  dcg_debug(hdt_term, ("TP ",rdf_dcg_triple(S,P,O)))
   ;   true
@@ -187,7 +188,7 @@ hdt_triple_random(Hdt, S, P, O) :-
   pre_term(Hdt, O, OAtom),
   Rnd is random_float,
   hdt_triple_random_(Hdt, Rnd, S, P, OAtom),
-  rdf_atom_to_term(OAtom, O),
+  hdt_atom_to_term(OAtom, O),
   (   debugging(hdt_term)
   ->  dcg_debug(hdt_term, ("random ",rdf_dcg_triple(S,P,O)))
   ;   true

@@ -1,18 +1,19 @@
 :- module(
   hdt_generic,
   [
-    hdt_close/1,      % +Hdt
-    hdt_create/1,     % +RdfFile
-    hdt_create/2,     % +RdfFile, -HdtFile
-    hdt_create/3,     % +RdfFile, -HdtFile, +Options
-    hdt_deinit/1,     % +Hdt
-    hdt_graph/1,      % ?G
-    hdt_graph/2,      % ?Hdt, ?G
-    hdt_init/2,       % +HdtFile, ?G
-    hdt_open/2,       % +HdtFile, -Hdt
-    hdt_term_count/3, % +Hdt, +Role, ?Count
-    role_leafrole/2,  % +Role, -LeafRole
-    role_subrole/2    % +Role, -SubRole
+    hdt_atom_to_term/2, % +Atom, -Term
+    hdt_close/1,        % +Hdt
+    hdt_create/1,       % +RdfFile
+    hdt_create/2,       % +RdfFile, -HdtFile
+    hdt_create/3,       % +RdfFile, -HdtFile, +Options
+    hdt_deinit/1,       % +Hdt
+    hdt_graph/1,        % ?G
+    hdt_graph/2,        % ?Hdt, ?G
+    hdt_init/2,         % +HdtFile, ?G
+    hdt_open/2,         % +HdtFile, -Hdt
+    hdt_term_count/3,   % +Hdt, +Role, ?Count
+    role_leafrole/2,    % +Role, -LeafRole
+    role_subrole/2      % +Role, -SubRole
   ]
 ).
 :- reexport(library(semweb/rdf11)).
@@ -30,6 +31,7 @@ API.
 :- use_module(library(aggregate)).
 :- use_module(library(apply)).
 :- use_module(library(call_ext)).
+:- use_module(library(dcg/basics)).
 :- use_module(library(filesex)).
 :- use_module(library(lists)).
 :- use_module(library(option)).
@@ -51,6 +53,38 @@ API.
    hdt_init(+, r).
 
 
+
+
+
+%! hdt_atom_to_term(+Atom:atom, -Term:compound) is det.
+
+hdt_atom_to_term(Atom, Literal2) :-
+  atom_codes(Atom, Codes),
+  phrase(hdt_literal1(Literal1), Codes), !,
+  literal_atom_codes(Literal2, Literal1).
+hdt_atom_to_term(NonLiteral, NonLiteral).
+
+literal_atom_codes(literal(type(D,Lex)), literal(type(D0,Lex0))) :- !,
+  maplist(atom_codes, [D,Lex], [D0,Lex0]).
+literal_atom_codes(literal(lang(LTag,Lex)), literal(type(LTag0,Lex0))) :- !,
+  maplist(atom_codes, [LTag,Lex], [LTag0,Lex0]).
+literal_atom_codes(literal(Lex), literal(Codes)) :-
+  atom_codes(Lex, Codes).
+
+hdt_literal1(Literal) -->
+  "\"",
+  string(Codes),
+  "\"",
+  hdt_literal2(Codes, Literal).
+
+hdt_literal2(Codes1, literal(type(Codes2,Codes1))) -->
+  "^^<",
+  string_without("\">", Codes2),
+  ">".
+hdt_literal2(Codes1, literal(lang(Codes2,Codes1))) -->
+  "@",
+  string_without("\"", Codes2).
+hdt_literal2(Codes, literal(Codes)) --> "".
 
 
 
@@ -157,7 +191,7 @@ hdt_graph(Hdt, G) :-
 
 hdt_header_(Hdt, S, P, Lex) :-
   hdt_triple_(Hdt, header, S, P, Atom),
-  rdf_atom_to_term(Atom, Literal),
+  hdt_atom_to_term(Atom, Literal),
   rdf_literal(Literal, _, _, Lex).
 
 
