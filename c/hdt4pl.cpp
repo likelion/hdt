@@ -870,11 +870,11 @@ PREDICATE(hdt_triple_random_, 5)
     return FALSE;
   try {
     IteratorTripleString *it {symb->hdt->search(s,p,o)};
-    size_t count {it->estimatedNumResults()};
+    size_t count = it->estimatedNumResults();
     if (count == 0)
       return FALSE;
-    size_t index {floor(rnd * (count - 1) + 1)};
-    Sprintf("%d from 0..%d\n", index, count-1);
+    size_t index = (size_t)floor(rnd * (count - 1));
+    Sprintf("%ld from [0,%ld)\n", index, count);
     it->skip(index);
     if (it->hasNext()) {
       TripleString *t {it->next()};
