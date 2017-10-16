@@ -18,7 +18,7 @@ $(SOBJ): $(OBJ)
 	mkdir -p $(PACKSODIR)
 	$(LD) $(ARCH) $(LDSOFLAGS) -o $@ $< $(LIBS) $(SWISOLIB)
 
-c/hdt4pl.o: c/hdt4pl.cpp $(LIBHDT) $(LIBSERD)
+c/hdt4pl.o: c/hdt4pl.cpp $(LIBHDT)
 	$(CC) $(ARCH) $(CFLAGS) -c -o $@ c/hdt4pl.cpp
 
 $(LIBHDT): $(HDTHOME)/Makefile
@@ -30,7 +30,7 @@ $(HDTHOME)/Makefile.am:
 $(HDTHOME)/Makefile.in: $(HDTHOME)/Makefile.am
 	(cd $(HDTHOME) && ./autogen.sh)
 
-$(HDTHOME)/Makefile: $(HDTHOME)/Makefile.in
+$(HDTHOME)/Makefile: $(HDTHOME)/Makefile.in $(LIBSERD)
 	echo $(SERDHOME)
 	(cd $(HDTHOME) && SERD_LIBS="-L$(SERDHOME)/build -lserd-0" SERD_CFLAGS=-I$(SERDHOME) \
 	 ./configure --with-pic --disable-shared)
