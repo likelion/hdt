@@ -1,5 +1,5 @@
 :- module(
-  hdt_term,
+  hdt_db,
   [
     hdt_term/3,            % +Hdt, +Role, ?Term
     hdt_term/4,            % +Hdt, +Role, -LeafRole, ?Term
@@ -29,7 +29,7 @@
    ]).
 :- reexport(library(semweb/rdf11)).
 
-/** <module> HDT by term
+/** <module> HDT API with `rdf_db' terms
 
 @author Wouter Beek
 @author Jan Wielemaker

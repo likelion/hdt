@@ -58,18 +58,10 @@ API.
 
 %! hdt_atom_to_term(+Atom:atom, -Term:compound) is det.
 
-hdt_atom_to_term(Atom, Literal2) :-
+hdt_atom_to_term(Atom, Literal) :-
   atom_codes(Atom, Codes),
-  phrase(hdt_literal1(Literal1), Codes), !,
-  literal_atom_codes(Literal2, Literal1).
+  phrase(hdt_literal1(Literal), Codes), !.
 hdt_atom_to_term(NonLiteral, NonLiteral).
-
-literal_atom_codes(literal(type(D,Lex)), literal(type(D0,Lex0))) :- !,
-  maplist(atom_codes, [D,Lex], [D0,Lex0]).
-literal_atom_codes(literal(lang(LTag,Lex)), literal(type(LTag0,Lex0))) :- !,
-  maplist(atom_codes, [LTag,Lex], [LTag0,Lex0]).
-literal_atom_codes(literal(Lex), literal(Codes)) :-
-  atom_codes(Lex, Codes).
 
 hdt_literal1(Literal) -->
   "\"",
@@ -77,14 +69,17 @@ hdt_literal1(Literal) -->
   "\"",
   hdt_literal2(Codes, Literal).
 
-hdt_literal2(Codes1, literal(type(Codes2,Codes1))) -->
+hdt_literal2(Codes1, literal(type(D,Lex))) -->
   "^^<",
   string_without("\">", Codes2),
-  ">".
-hdt_literal2(Codes1, literal(lang(Codes2,Codes1))) -->
+  ">",
+  {maplist(atom_codes, [D,Lex], [Codes2,Codes1])}.
+hdt_literal2(Codes1, literal(lang(LTag,Lex))) -->
   "@",
-  string_without("\"", Codes2).
-hdt_literal2(Codes, literal(Codes)) --> "".
+  string_without("\"", Codes2),
+  {maplist(atom_codes, [LTag,Lex], [Codes2,Codes1])}.
+hdt_literal2(Codes, literal(Lex)) -->
+  {atom_codes(Lex, Codes)}.
 
 
 
