@@ -35,18 +35,19 @@
 #define PL_ARITY_AS_SIZE 1
 #include <SWI-Stream.h>
 #include <SWI-cpp.h>
-#include <iostream>
 #include <HDTManager.hpp>
 #include <assert.h>
 #include <cmath>
+#include <locale>
+#include <iostream>
 
-using namespace std;
 using namespace hdt;
+using namespace std;
 
 static void deleteHDT(HDT *hdt);
 static int get_dict_section(term_t t, DictionarySection *section);
 static int get_triple_role(term_t t, TripleComponentRole *role);
-static int unify_string(term_t t, const char *s);
+static int unify_string(term_t t, const std::string);
 
 #define CATCH_HDT \
 	catch (char *e)				\
@@ -137,9 +138,7 @@ compare_hdts(atom_t a, atom_t b)
 static int
 write_hdt(IOSTREAM *s, atom_t symbol, int flags)
 { hdt_wrapper *symb = (hdt_wrapper*)PL_blob_data(symbol, NULL, NULL);
-
   Sfprintf(s, "<hdt>(%p)", symb);
-
   return TRUE;
 }
 
@@ -374,9 +373,9 @@ PREDICATE_NONDET(hdt_triple_, 5)
   return FALSE;
 }
 
-static int unify_string(term_t t, const char *s)
+static int unify_string(term_t t, const std::string s)
 {
-  return PL_unify_chars(t, PL_ATOM|REP_UTF8, (size_t)-1, s);
+  return PL_unify_chars(t, PL_ATOM|REP_UTF8, (size_t)-1, s.c_str());
 }
 
 
@@ -591,12 +590,12 @@ PREDICATE(hdt_term_random_, 4)
       // We can pick either subject or object here.
       role = SUBJECT;
     }
-    size_t index = floor(rnd * (max - min) + min);
-    Sprintf("%d from %d..%d\n", index, min, max);
-    string str {dict->idToString((size_t) index, role)};
-    if ( !str.empty() ) {
-      return PL_unify_chars(A3, PL_ATOM|REP_UTF8, (size_t)-1, str.c_str());
-    }
+    size_t index = (size_t)(ceil(rnd * (max - min) + min));
+    std::cout.imbue(std::locale(""));
+    std::cout << index << " from [" << min << " ... " << max << "]\n";
+    std::string str {dict->idToString(index, role)};
+    if (!str.empty())
+      return unify_string(A4, str);
   } CATCH_HDT;
   return FALSE;
 }
@@ -628,8 +627,9 @@ PREDICATE(hdt_term_random_id_, 4)
       min = 1;
       max = dict->getNshared();
     }
-    unsigned int index = floor(rnd * (max - min) + min);
-    Sprintf("%d from 0..%d\n", index, max);
+    size_t index = (size_t)(ceil(rnd * (max - min) + min));
+    std::cout.imbue(std::locale(""));
+    std::cout << index << " from [" << min << " .. " << max << "]\n";
     return PL_unify_integer(A3, index);
   } CATCH_HDT;
   return FALSE;
@@ -873,15 +873,16 @@ PREDICATE(hdt_triple_random_, 5)
     size_t count = it->estimatedNumResults();
     if (count == 0)
       return FALSE;
-    size_t index = (size_t)floor(rnd * (count - 1));
-    Sprintf("%ld from [0,%ld)\n", index, count);
+    size_t index = (size_t)(ceil(rnd * count));
+    std::cout.imbue(std::locale(""));
+    std::cout << index << " from [1 .. " << count << "]\n";
     it->skip(index);
     if (it->hasNext()) {
       TripleString *t {it->next()};
       bool rc =
-        ( (!(flags&S_S) || unify_string(A3, t->getSubject().c_str())) &&
-          (!(flags&S_P) || unify_string(A4, t->getPredicate().c_str())) &&
-          (!(flags&S_O) || unify_string(A5, t->getObject().c_str())) );
+        ( (!(flags&S_S) || unify_string(A3, t->getSubject())) &&
+          (!(flags&S_P) || unify_string(A4, t->getPredicate())) &&
+          (!(flags&S_O) || unify_string(A5, t->getObject())) );
       delete it;
       return rc;
     }
@@ -909,8 +910,9 @@ PREDICATE(hdt_triple_random_id_, 5)
     size_t count {it->estimatedNumResults()};
     if (count == 0)
       return FALSE;
-    size_t index {floor(rnd * (count - 1) + 1)};
-    Sprintf("%d from 0..%d\n", index, count-1);
+    size_t index = (size_t)(ceil(rnd * count));
+    std::cout.imbue(std::locale(""));
+    std::cout << index << " from [1 .. " << count << "]\n";
     it->skip(index);
     if (it->hasNext()) {
       TripleID *t {it->next()};
