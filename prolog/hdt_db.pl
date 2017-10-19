@@ -18,6 +18,7 @@
 :- reexport(library(hdt_generic), [
      hdt_atom_to_term/2,
      hdt_close/1,
+     hdt_create/1,
      hdt_create/2,
      hdt_create/3,
      hdt_deinit/1,
