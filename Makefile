@@ -3,7 +3,7 @@
 HDTHOME=hdt-cpp
 DLIBS=/.libs
 SOBJ=	$(PACKSODIR)/hdt4pl.$(SOEXT)
-CFLAGS+=-I$(HDTHOME)/libhdt/include -Iserd/serd -g -Wall
+CFLAGS+=-I$(HDTHOME)/libhdt/include -Iserd/serd -std=c++11 -g -Wall
 LIBDIR=$(HDTHOME)/libhdt$(DLIBS)
 LIBHDT=$(LIBDIR)/libhdt.a
 LIBSERD=serd/build/libserd-0.a
