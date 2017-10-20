@@ -129,6 +129,7 @@ hdt_term_prefix(Hdt, Role, Prefix, Term) :-
 hdt_term_prefix(Hdt, Role, Prefix, LeafRole, Term) :-
   role_leafrole(Role, LeafRole),
   hdt_term_prefix_(Hdt, LeafRole, Prefix, Atom),
+  (atom_prefix(Atom, Prefix) -> true ; !, fail),
   hdt_atom_to_term(Atom, Term).
 
 

@@ -405,7 +405,6 @@ PREDICATE_NONDET(hdt_term_prefix_, 4)
           !PL_get_nchars(A3, &len, &prefix, CVT_TEXT))
         return FALSE;
       try {
-        std::cout << "prefix=" << prefix << "\trole=" << role << '\n';
         it = symb->hdt->getDictionary()->getSuggestions(prefix, role);
       } CATCH_HDT;
       goto next;
