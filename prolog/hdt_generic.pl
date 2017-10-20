@@ -1,6 +1,7 @@
 :- module(
   hdt_generic,
   [
+    hdt/1,              % ?Hdt
     hdt_atom_to_term/2, % +Atom, -Term
     hdt_close/1,        % +Hdt
     hdt_create/1,       % +RdfFile
@@ -53,6 +54,13 @@ API.
    hdt_init(+, r).
 
 
+
+
+
+%! hdt(?Hdt:blob) is nondet.
+
+hdt(Hdt) :-
+  hdt_graph(Hdt, _).
 
 
 

@@ -16,6 +16,7 @@
   ]
 ).
 :- reexport(library(hdt_generic), [
+     hdt/1,
      hdt_atom_to_term/2,
      hdt_close/1,
      hdt_create/1,
@@ -70,6 +71,13 @@ hdt_term(Hdt, Role, Term) :-
   hdt_term(Hdt, Role, _, Term).
 
 
+% blank node
+hdt_term(Hdt, bnode, LeafRole, Term) :-
+  member(Role, [shared,sink,source]),
+  hdt_term_prefix(Hdt, Role, '_', LeafRole, Term).
+% literal
+hdt_term(Hdt, literal, LeafRole, Term) :-
+  hdt_term_prefix(Hdt, sink, '"', LeafRole, Term).
 % predicate
 hdt_term(Hdt, predicate, predicate, Term) :-
   (   var(Term)
