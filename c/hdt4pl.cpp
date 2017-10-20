@@ -48,6 +48,7 @@ static void deleteHDT(HDT *hdt);
 static int get_dict_section(term_t t, DictionarySection *section);
 static int get_triple_role(term_t t, TripleComponentRole *role);
 static int unify_string(term_t t, const std::string);
+static size_t rnd_between(double rnd, size_t min, size_t max);
 
 #define CATCH_HDT \
 	catch (char *e)				\
@@ -222,6 +223,14 @@ hdt_error(const char *e)
   return PL_raise_exception(PlCompound("error", PlTermv(f, PlTerm())));
 }
 
+size_t rnd_between(double rnd, size_t min, size_t max)
+{
+  size_t index {static_cast<size_t>(round(rnd * (max - min)) + 1)};
+  //std::cout.imbue(std::locale(""));
+  //std::cout << index << " from [" << min << " ... " << max << "]\n";
+  return index;
+}
+
 
 		 /*******************************
 		 *	     PREDICATES		*
@@ -320,55 +329,59 @@ PREDICATE_NONDET(hdt_triple_, 5)
   search_it ctx_buf = {0};
   search_it *ctx;
   int rc;
-
-  switch(PL_foreign_control(handle))
-  { case PL_FIRST_CALL:
-    { char *s, *p, *o;
+  switch(PL_foreign_control(handle)) {
+  case PL_FIRST_CALL:
+    {
+      char *s, *p, *o;
       atom_t where;
       ctx = &ctx_buf;
       if ( !get_hdt(A1, &symb) ||
            !PL_get_atom_ex(A2, &where) ||
-	   !get_hdt_string(A3, &s, S_S, &ctx->flags) ||
-	   !get_hdt_string(A4, &p, S_P, &ctx->flags) ||
-	   !get_hdt_string(A5, &o, S_O, &ctx->flags) )
-	return FALSE;
-      try
-      { if ( where == ATOM_content )
-	  ctx->it = symb->hdt->search(s,p,o);
-	else if ( where == ATOM_header )
-	  ctx->it = symb->hdt->getHeader()->search(s,p,o);
-	else
-	  return PL_domain_error("hdt_where", A2);
+           !get_hdt_string(A3, &s, S_S, &ctx->flags) ||
+           !get_hdt_string(A4, &p, S_P, &ctx->flags) ||
+           !get_hdt_string(A5, &o, S_O, &ctx->flags) )
+        return FALSE;
+      try {
+        if ( where == ATOM_content )
+          ctx->it = symb->hdt->search(s,p,o);
+        else if ( where == ATOM_header )
+          ctx->it = symb->hdt->getHeader()->search(s,p,o);
+        else
+          return PL_domain_error("hdt_where", A2);
       } CATCH_HDT;
       goto next;
     }
-    case PL_REDO:
-      ctx = (search_it*)PL_foreign_context_address(handle);
-    next:
-    { if ( ctx->it->hasNext() )
-      { TripleString *t = ctx->it->next();
-	if ( (!(ctx->flags&S_S) || unify_string(A3, t->getSubject().c_str())) &&
-	     (!(ctx->flags&S_P) || unify_string(A4, t->getPredicate().c_str())) &&
-	     (!(ctx->flags&S_O) || unify_string(A5, t->getObject().c_str())) )
-	{ if ( ctx == &ctx_buf )
-	  { ctx = (search_it*)PL_malloc(sizeof(*ctx));
-	    *ctx = ctx_buf;
-	  }
-	  PL_retry_address(ctx);
-	}
+  case PL_REDO:
+    ctx = (search_it*)PL_foreign_context_address(handle);
+  next:
+    {
+      if ( ctx->it->hasNext() ) {
+        TripleString *t = ctx->it->next();
+        if ( (!(ctx->flags&S_S) ||
+              unify_string(A3, t->getSubject().c_str())) &&
+             (!(ctx->flags&S_P) ||
+              unify_string(A4, t->getPredicate().c_str())) &&
+             (!(ctx->flags&S_O) ||
+              unify_string(A5, t->getObject().c_str())) ) {
+          if ( ctx == &ctx_buf ) {
+            ctx = (search_it*)PL_malloc(sizeof(*ctx));
+            *ctx = ctx_buf;
+          }
+          PL_retry_address(ctx);
+        }
       }
       rc = FALSE;
       goto cleanup;
     }
-    case PL_PRUNED:
-      ctx = (search_it*)PL_foreign_context_address(handle);
-      rc = TRUE;
-    cleanup:
-      if ( ctx->it )
-	delete ctx->it;
-      if ( ctx != &ctx_buf )
-	PL_free(ctx);
-      return rc;
+  case PL_PRUNED:
+    ctx = (search_it*)PL_foreign_context_address(handle);
+    rc = TRUE;
+  cleanup:
+    if ( ctx->it )
+      delete ctx->it;
+    if ( ctx != &ctx_buf )
+      PL_free(ctx);
+    return rc;
   }
   return FALSE;
 }
@@ -590,9 +603,7 @@ PREDICATE(hdt_term_random_, 4)
       // We can pick either subject or object here.
       role = SUBJECT;
     }
-    size_t index = (size_t)(ceil(rnd * (max - min) + min));
-    std::cout.imbue(std::locale(""));
-    std::cout << index << " from [" << min << " ... " << max << "]\n";
+    size_t index {rnd_between(rnd, min, max)};
     std::string str {dict->idToString(index, role)};
     if (!str.empty())
       return unify_string(A4, str);
@@ -627,9 +638,7 @@ PREDICATE(hdt_term_random_id_, 4)
       min = 1;
       max = dict->getNshared();
     }
-    size_t index = (size_t)(ceil(rnd * (max - min) + min));
-    std::cout.imbue(std::locale(""));
-    std::cout << index << " from [" << min << " .. " << max << "]\n";
+    size_t index {rnd_between(rnd, min, max)};
     return PL_unify_integer(A3, index);
   } CATCH_HDT;
   return FALSE;
@@ -859,7 +868,7 @@ PREDICATE(hdt_count_id_, 5)
 PREDICATE(hdt_triple_random_, 5)
 {
   hdt_wrapper *symb;
-  unsigned int flags = 0;
+  unsigned int flags {0};
   char *s, *p, *o;
   double rnd;
   if ( !get_hdt(A1, &symb) ||
@@ -873,10 +882,8 @@ PREDICATE(hdt_triple_random_, 5)
     size_t count = it->estimatedNumResults();
     if (count == 0)
       return FALSE;
-    size_t index = (size_t)(ceil(rnd * count));
-    std::cout.imbue(std::locale(""));
-    std::cout << index << " from [1 .. " << count << "]\n";
-    it->skip(index);
+    size_t index {rnd_between(rnd, 1, count)};
+    it->skip(index-1);
     if (it->hasNext()) {
       TripleString *t {it->next()};
       bool rc =
@@ -910,9 +917,7 @@ PREDICATE(hdt_triple_random_id_, 5)
     size_t count {it->estimatedNumResults()};
     if (count == 0)
       return FALSE;
-    size_t index = (size_t)(ceil(rnd * count));
-    std::cout.imbue(std::locale(""));
-    std::cout << index << " from [1 .. " << count << "]\n";
+    size_t index {rnd_between(rnd, 1, count)};
     it->skip(index);
     if (it->hasNext()) {
       TripleID *t {it->next()};
