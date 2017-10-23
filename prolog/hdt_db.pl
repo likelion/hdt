@@ -1,6 +1,7 @@
 :- module(
   hdt_db,
   [
+    hdt_atom_to_term/2,    % +Atom, -Term
     hdt_term/3,            % +Hdt, +Role, ?Term
     hdt_term/4,            % +Hdt, +Role, -LeafRole, ?Term
     hdt_term_count/3,      % +Hdt, +Role, ?Count
@@ -17,7 +18,6 @@
 ).
 :- reexport(library(hdt_generic), [
      hdt/1,
-     hdt_atom_to_term/2,
      hdt_close/1,
      hdt_create/1,
      hdt_create/2,
@@ -29,7 +29,7 @@
      hdt_open/2,
      hdt_term_count/3
    ]).
-:- reexport(library(semweb/rdf11)).
+:- reexport(library(semweb/rdf_api)).
 
 /** <module> HDT API with `rdf_db' terms
 
@@ -59,6 +59,38 @@
    hdt_triple_translate(+, t, ?).
 
 
+
+
+
+%! hdt_atom_to_term(+Atom:atom, -Term:compound) is det.
+
+hdt_atom_to_term(Atom, Literal) :-
+  atom_codes(Atom, Codes),
+  phrase(hdt_literal1(Literal0), Codes), !,
+  literal_codes(Literal0, Literal).
+hdt_atom_to_term(NonLiteral, NonLiteral).
+
+hdt_literal1(Literal0) -->
+  "\"",
+  string(Lex0),
+  "\"",
+  hdt_literal2(Lex0, Literal0).
+
+hdt_literal2(Lex0, literal(type(D0,Lex0))) -->
+  "^^<",
+  string_without("\">", D0),
+  ">".
+hdt_literal2(Lex0, literal(lang(LTag0,Lex0))) -->
+  "@",
+  string_without("\"", LTag0).
+hdt_literal2(Lex0, literal(Lex0)) --> "".
+
+literal_codes(literal(lang(LTag0,Lex0)), literal(lang(LTag,Lex))) :- !,
+  maplist(atom_codes, [LTag,Lex], [LTag0,Lex0]).
+literal_codes(literal(type(D0,Lex0)), literal(type(D,Lex))) :- !,
+  maplist(atom_codes, [D,Lex], [D0,Lex0]).
+literal_codes(literal(Lex0), literal(Lex)) :-
+  atom_codes(Lex, Lex0).
 
 
 

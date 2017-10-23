@@ -2,12 +2,11 @@
   hdt_generic,
   [
     hdt/1,              % ?Hdt
-    hdt_atom_to_term/2, % +Atom, -Term
     hdt_close/1,        % +Hdt
     hdt_create/1,       % +RdfFile
     hdt_create/2,       % +RdfFile, -HdtFile
     hdt_create/3,       % +RdfFile, -HdtFile, +Options
-    hdt_deinit/1,       % +Hdt
+    hdt_deinit/1,       % +G
     hdt_graph/1,        % ?G
     hdt_graph/2,        % ?Hdt, ?G
     hdt_init/2,         % +HdtFile, ?G
@@ -17,7 +16,6 @@
     role_subrole/2      % +Role, -SubRole
   ]
 ).
-:- reexport(library(semweb/rdf11)).
 
 /** <module> HDT generic
 
@@ -50,7 +48,6 @@ API.
    atom_literal_(+, o),
    hdt_graph(r),
    hdt_graph(?, r),
-   hdt_header_(+, r, r, -),
    hdt_init(+, r).
 
 
@@ -61,38 +58,6 @@ API.
 
 hdt(Hdt) :-
   hdt_graph(Hdt, _).
-
-
-
-%! hdt_atom_to_term(+Atom:atom, -Term:compound) is det.
-
-hdt_atom_to_term(Atom, Literal) :-
-  atom_codes(Atom, Codes),
-  phrase(hdt_literal1(Literal0), Codes), !,
-  literal_codes(Literal0, Literal).
-hdt_atom_to_term(NonLiteral, NonLiteral).
-
-hdt_literal1(Literal0) -->
-  "\"",
-  string(Lex0),
-  "\"",
-  hdt_literal2(Lex0, Literal0).
-
-hdt_literal2(Lex0, literal(type(D0,Lex0))) -->
-  "^^<",
-  string_without("\">", D0),
-  ">".
-hdt_literal2(Lex0, literal(lang(LTag0,Lex0))) -->
-  "@",
-  string_without("\"", LTag0).
-hdt_literal2(Lex0, literal(Lex0)) --> "".
-
-literal_codes(literal(lang(LTag0,Lex0)), literal(lang(LTag,Lex))) :- !,
-  maplist(atom_codes, [LTag,Lex], [LTag0,Lex0]).
-literal_codes(literal(type(D0,Lex0)), literal(type(D,Lex))) :- !,
-  maplist(atom_codes, [D,Lex], [D0,Lex0]).
-literal_codes(literal(Lex0), literal(Lex)) :-
-  atom_codes(Lex, Lex0).
 
 
 
@@ -195,15 +160,6 @@ hdt_graph(Hdt, G) :-
 
 
 
-%! hdt_header_(+Hdt:blob, ?S:atom, ?P:atom, -Lex:string) is nondet.
-
-hdt_header_(Hdt, S, P, Lex) :-
-  hdt_triple_(Hdt, header, S, P, Atom),
-  hdt_atom_to_term(Atom, Literal),
-  rdf_literal(Literal, _, _, Lex).
-
-
-
 %! hdt_init(+HdtFile:atom, ?G:atom) is det.
 %
 % Opens the given HDT file (`HdtFile`) and allows it to be denoted by
@@ -275,7 +231,9 @@ hdt_open(HdtFile, Hdt, Options) :-
 % object, predicate, shared, subject
 hdt_term_count(Hdt, Role, N) :-
   header_role_property(Role, P), !,
-  once(hdt_header_(Hdt, _, P, Lex)),
+  once(hdt_triple_(Hdt, header, _, P, Atom1)),
+  atom_concat('"', Atom2, Atom1),
+  atom_concat(Lex, '"', Atom2),
   atom_number(Lex, N).
 % sink
 hdt_term_count(Hdt, sink, N) :- !,

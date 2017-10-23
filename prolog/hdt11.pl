@@ -16,6 +16,7 @@
   ]
 ).
 :- reexport(library(hdt_generic), [
+     hdt/1,
      hdt_close/1,
      hdt_create/2,
      hdt_create/3,
