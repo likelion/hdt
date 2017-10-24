@@ -44,13 +44,9 @@
 
 :- use_module(library(dcg/basics)).
 :- use_module(library(error)).
-:- use_module(library(filesex)).
 :- use_module(library(lists)).
-:- use_module(library(option)).
 :- use_module(library(semweb/hdt_generic)).
 :- use_module(library(semweb/rdf_api)).
-:- use_module(library(sgml)).
-:- use_module(library(uri)).
 
 :- rdf_meta
    hdt_term(+, +, o),

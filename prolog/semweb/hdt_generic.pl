@@ -31,13 +31,13 @@ Code that is shared between the two HDT APIs.
 
 :- use_module(library(aggregate)).
 :- use_module(library(apply)).
-:- use_module(library(call_ext)).
+:- use_module(library(closure)).
 :- use_module(library(dcg/basics)).
 :- use_module(library(error)).
 :- use_module(library(filesex)).
 :- use_module(library(lists)).
 :- use_module(library(option)).
-:- use_module(library(semweb/rdf_api)).
+:- use_module(library(semweb/rdf11)).
 :- use_module(library(uri)).
 
 :- use_foreign_library(foreign(hdt4pl)).
@@ -352,8 +352,6 @@ role_subrole(subject, shared).
 role_subrole(subject, source).
 role_subrole(term, predicate).
 role_subrole(term, node).
-
-
 
 
 

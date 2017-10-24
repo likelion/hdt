@@ -44,7 +44,6 @@
 :- use_module(library(apply)).
 :- use_module(library(lists)).
 :- use_module(library(semweb/hdt_generic)).
-:- use_module(library(semweb/rdf_api)).
 
 :- rdf_meta
    hdt_term(+, +, r),
