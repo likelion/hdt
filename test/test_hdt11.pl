@@ -1,5 +1,5 @@
 :- module(test_hdt11, []).
-:- reexport(library(hdt11)).
+:- reexport(library(semweb/hdt11)).
 
 /** <module> Tests for the HDT library consistent with rdf11
 

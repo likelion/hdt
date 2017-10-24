@@ -6,9 +6,11 @@
     hdt_create/1,       % +RdfFile
     hdt_create/2,       % +RdfFile, -HdtFile
     hdt_create/3,       % +RdfFile, -HdtFile, +Options
+    hdt_deinit/0,
     hdt_deinit/1,       % +G
     hdt_graph/1,        % ?G
     hdt_graph/2,        % ?Hdt, ?G
+    hdt_init/1,         % +HdtFile
     hdt_init/2,         % +HdtFile, ?G
     hdt_open/2,         % +HdtFile, -Hdt
     hdt_property/2,     % +Hdt, ?Property
@@ -31,6 +33,7 @@ Code that is shared between the two HDT APIs.
 :- use_module(library(apply)).
 :- use_module(library(call_ext)).
 :- use_module(library(dcg/basics)).
+:- use_module(library(error)).
 :- use_module(library(filesex)).
 :- use_module(library(lists)).
 :- use_module(library(option)).
@@ -124,15 +127,23 @@ extension_format(ttl, turtle).
 
 
 
+%! hdt_deinit is det.
 %! hdt_deinit(+G:atom) is det.
 %
 % Closes the HDT file denoted by the named graph `G`.
 
+hdt_deinit :-
+  rdf_default_graph(G),
+  hdt_deinit(G).
+
+
 hdt_deinit(G) :-
   with_mutex(hdt, (
-    hdt_graph_(Hdt, G),
-    retractall(hdt_graph_(Hdt, G)),
-    hdt_close(Hdt)
+    (   hdt_graph_(Hdt, G)
+    ->  retractall(hdt_graph_(Hdt, G)),
+        hdt_close(Hdt)
+    ;   existence_error(hdt_graph, G)
+    )
   )).
 
 
@@ -160,6 +171,7 @@ hdt_graph(Hdt, G) :-
 
 
 
+%! hdt_init(+HdtFile:atom) is det.
 %! hdt_init(+HdtFile:atom, ?G:atom) is det.
 %
 % Opens the given HDT file (`HdtFile`) and allows it to be denoted by
@@ -173,6 +185,11 @@ hdt_graph(Hdt, G) :-
 %
 %      If the graph G is unboud, the URI version of the HDT file name
 %      is used.
+
+hdt_init(HdtFile) :-
+  rdf_default_graph(G),
+  hdt_init(HdtFile, G).
+
 
 hdt_init(HdtFile, G) :-
   (var(G) -> uri_file_name(G, HdtFile) ; true),

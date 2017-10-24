@@ -1,5 +1,5 @@
 :- module(test_hdt_db, []).
-:- reexport(library(hdt_db)).
+:- reexport(library(semweb/hdt_db)).
 
 /** <module> Tests for the HDT library consistent with rdf_db
 
