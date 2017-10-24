@@ -66,24 +66,9 @@
 
 hdt_atom_to_term(Atom, Literal) :-
   atom_codes(Atom, Codes),
-  phrase(hdt_literal1(Literal0), Codes), !,
+  phrase(hdt_generic:hdt_literal1(Literal0), Codes), !,
   literal_codes(Literal0, Literal).
 hdt_atom_to_term(NonLiteral, NonLiteral).
-
-hdt_literal1(Literal0) -->
-  "\"",
-  string(Lex0),
-  "\"",
-  hdt_literal2(Lex0, Literal0).
-
-hdt_literal2(Lex0, literal(type(D0,Lex0))) -->
-  "^^<",
-  string_without("\">", D0),
-  ">".
-hdt_literal2(Lex0, literal(lang(LTag0,Lex0))) -->
-  "@",
-  string_without("\"", LTag0).
-hdt_literal2(Lex0, literal(Lex0)) --> "".
 
 literal_codes(literal(lang(LTag0,Lex0)), literal(lang(LTag,Lex))) :- !,
   maplist(atom_codes, [LTag,Lex], [LTag0,Lex0]).

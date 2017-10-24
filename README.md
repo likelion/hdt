@@ -61,3 +61,42 @@ following command:
 ## Status
 
 Usable, but still experimental.
+
+
+# Roles
+
+  - bnode
+    Terms that are blank nodes.
+
+  - iri
+    Terms that are IRIs.
+
+  - literal
+    Terms that are literals.
+
+  - name
+    Terms that are IRIs or literals.
+
+  - node
+    Terms that appear in the subject or object position.
+
+  - object
+    Terms that appear in the object position.
+
+  - predicate
+    Terms that appear in the predicate position.
+
+  - shared
+    Terms that appear in the subject and object position.
+
+  - sink
+    Terms that only appear in the object position.
+
+  - source
+    Terms that only appear in the subject position.
+
+  - subject
+    Terms that appear in the subject position.
+
+  - term
+    Terms that appear somewhere.

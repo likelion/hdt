@@ -11,6 +11,7 @@
     hdt_graph/2,        % ?Hdt, ?G
     hdt_init/2,         % +HdtFile, ?G
     hdt_open/2,         % +HdtFile, -Hdt
+    hdt_property/2,     % +Hdt, ?Property
     hdt_term_count/3,   % +Hdt, +Role, ?Count
     role_leafrole/2,    % +Role, -LeafRole
     role_subrole/2      % +Role, -SubRole
@@ -188,6 +189,23 @@ hdt_init(HdtFile, G) :-
 
 
 
+hdt_literal1(Literal0) -->
+  "\"",
+  string(Lex0),
+  "\"",
+  hdt_literal2(Lex0, Literal0).
+
+hdt_literal2(Lex0, literal(type(D0,Lex0))) -->
+  "^^<",
+  string_without("\">", D0),
+  ">".
+hdt_literal2(Lex0, literal(lang(LTag0,Lex0))) -->
+  "@",
+  string_without("\"", LTag0).
+hdt_literal2(Lex0, literal(Lex0)) --> "".
+
+
+
 %! hdt_open(+HdtFile:atom, -Hdt:blob) is det.
 %! hdt_open(+HdtFile:atom, -Hdt:blob, +Options:list(compound)) is det.
 %
@@ -222,6 +240,39 @@ hdt_open(HdtFile, Hdt) :-
 
 hdt_open(HdtFile, Hdt, Options) :-
   hdt_open_(HdtFile, Hdt, Options).
+
+
+
+%! hdt_property(+Hdt:blob, +Property:compound) is semidet.
+%! hdt_property(+Hdt:blob, -Property:compound) is nondet.
+%
+%  True of Property is a property of HTD.  Defined properties are
+%
+%    * elements(-Count))
+%    * mapping(-Mapping)
+%    * max_id(-Id))
+%    * max_object_id(-Id))
+%    * max_predicate_id(-Id))
+%    * max_subject_id(-Id))
+%    * objects(-Count))
+%    * predicates(-Count))
+%    * shared(-Count))
+%    * subjects(-Count))
+
+hdt_property(Hdt, Property) :-
+  hdt_property(Property),
+  hdt_property_(Hdt, Property).
+
+hdt_property(elements(_)).
+hdt_property(mapping(_)).
+hdt_property(max_id(_)).
+hdt_property(max_object_id(_)).
+hdt_property(max_predicate_id(_)).
+hdt_property(max_subject_id(_)).
+hdt_property(objects(_)).
+hdt_property(predicates(_)).
+hdt_property(shared(_)).
+hdt_property(subjects(_)).
 
 
 

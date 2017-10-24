@@ -1,12 +1,15 @@
 :- module(
   hdt11,
   [
-    hdt_property/2,         % +Hdt, -Property
-    hdt_term/3,             % +Hdt, ?Role, ?Term
+    hdt_atom_to_term/2,     % +Atom, -Term
+    hdt_term/3,             % +Hdt, +Role, ?Term
+    hdt_term/4,             % +Hdt, +Role, -LeafRole, ?Term
     hdt_term_count/3,       % +Hdt, +Role, ?Count
-    hdt_term_prefix/4,      % +Hdt, ?Role, +Prefix, ?Term
+    hdt_term_prefix/4,      % +Hdt, +Role, +Prefix, ?Term
+    hdt_term_prefix/5,      % +Hdt, +Role, +Prefix, -LeafRole, ?Term
     hdt_term_random/3,      % +Hdt, +Role, -Term
-    hdt_term_translate/3,   % +Hdt, ?Term, ?Id
+    hdt_term_random/4,      % +Hdt, +Role, -LeafRole, -Term
+    hdt_term_translate/4,   % +Hdt, +Role, ?Term, ?Id
     hdt_triple/4,           % +Hdt, ?S, ?P, ?O
     hdt_triple_count/5,     % +Hdt, ?S, ?P, ?O, ?Count
     hdt_triple_random/4,    % +Hdt, ?S, ?P, ?O
@@ -18,6 +21,7 @@
 :- reexport(library(hdt_generic), [
      hdt/1,
      hdt_close/1,
+     hdt_create/1,
      hdt_create/2,
      hdt_create/3,
      hdt_deinit/1,
@@ -41,257 +45,205 @@
 :- use_module(library(filesex)).
 :- use_module(library(lists)).
 :- use_module(library(option)).
-:- use_module(library(semweb/rdf11)).
+:- use_module(library(semweb/rdf_api)).
 :- use_module(library(sgml)).
 :- use_module(library(uri)).
+:- use_module(library(xsd/xsd)).
 
 :- use_foreign_library(foreign(hdt4pl)).
 
 :- rdf_meta
-   hdt_term(+, ?, o),
-   hdt_term_prefix(+, ?, +, o),
-   hdt_term_random(+, -, o),
-   hdt_term_translate(+, t, ?),
+   hdt_term(+, +, o),
+   hdt_term(+, +, -, o),
+   hdt_term_prefix(+, +, +, o),
+   hdt_term_prefix(+, +, +, -, o),
+   hdt_term_translate(+, o, ?),
    hdt_triple(+, r, r, o),
-   hdt_triple_count(+, r, r, o, -),
+   hdt_triple_count(+, r, r, o, ?),
    hdt_triple_random(+, r, r, o),
-   hdt_triple_translate(+, t, ?).
+   hdt_triple_translate(+, t, ?),
+   literal_codes(+, o).
 
 
 
 
 
-%! hdt_term(+Hdt:blob, ?Role:atom, ?Term:rdf_term) is nondet.
-%
-%  @arg Role is either of the following atoms:
-%
-%    * bnode
-%
-%      Terms that are blank nodes.
-%
-%    * iri
-%
-%      Terms that are IRIs.
-%
-%    * literal
-%
-%      Terms that are literals.
-%
-%    * name
-%
-%      Terms that are IRIs or literals.
-%
-%    * node
-%
-%      Terms that appear in the subject or object position.
-%
-%    * object
-%
-%      Terms that appear in the object position.
-%
-%    * predicate
-%
-%      Terms that appear in the predicate position.
-%
-%    * shared
-%
-%      Terms that appear in the subject and object position.
-%
-%    * sink
-%
-%      Terms that only appear in the object position.
-%
-%    * source
-%
-%      Terms that only appear in the subject position.
-%
-%    * subject
-%
-%      Terms that appear in the subject position.
-%
-%    * term
-%
-%      Terms that appear somewhere.
+%! hdt_atom_to_term(+Atom:atom, -Term:rdf_term) is det.
 
-% node
-hdt_term(Hdt, node, Node) :-
-  hdt_term(Hdt, shared, Node).
-hdt_term(Hdt, node, Node) :-
-  hdt_term(Hdt, sink, Node).
-hdt_term(Hdt, node, Node) :-
-  hdt_term(Hdt, source, Node).
-% object
-hdt_term(Hdt, object, O) :-
-  hdt_term(Hdt, shared, O).
-hdt_term(Hdt, object, O) :-
-  hdt_term(Hdt, sink, O).
+hdt_atom_to_term(Atom, Literal) :-
+  atom_codes(Atom, Codes),
+  phrase(hdt_generic:hdt_literal1(Literal0), Codes), !,
+  literal_codes(Literal0, Literal).
+hdt_atom_to_term(NonLiteral, NonLiteral).
+
+literal_codes(literal(lang(LTag0,Lex0)), String@LTag) :- !,
+  atom_codes(LTag, LTag0),
+  string_codes(String, Lex0).
+literal_codes(literal(type(D0,Lex0)), Value^^D) :- !,
+  maplist(atom_codes, [D,Lex], [D0,Lex0]),
+  rdf_lexical_value(D, Lex, Value).
+literal_codes(literal(Lex0), String^^xsd:string) :-
+  string_codes(String, Lex0).
+
+
+
+%! hdt_term(+Hdt:blob, +Role:atom, +Term:rdf_term) is semidet.
+%! hdt_term(+Hdt:blob, +Role:atom, -Term:rdf_term) is nondet.
+%! hdt_term(+Hdt:blob, +Role:atom, -LeafRole:atom, +Term:rdf_term) is semidet.
+%! hdt_term(+Hdt:blob, +Role:atom, -LeafRole:atom, -Term:rdf_term) is nondet.
+
+hdt_term(Hdt, Role, Term) :-
+  hdt_term(Hdt, Role, _, Term).
+
+
 % predicate
-hdt_term(Hdt, predicate, P) :-
-  (   var(P)
-  ->  hdt_term_(Hdt, predicate, P)
-  ;   hdt_(Hdt, content, _, P, _)
+hdt_term(Hdt, predicate, predicate, Term) :-
+  (   var(Term)
+  ->  hdt_term_(Hdt, predicate, Term)
+  ;   hdt_triple_(Hdt, content, _, Term, _)
   ).
 % shared
-hdt_term(Hdt, shared, Shared) :-
-  (   var(Shared)
+hdt_term(Hdt, shared, shared, Term) :-
+  (   var(Term)
   ->  hdt_term_(Hdt, shared, Atom)
-  ;   % O: Determine this based on ID offset.
-      pre_term(Hdt, Shared, Atom),
-      hdt_(Hdt, content, Atom, _, _),
-      hdt_(Hdt, content, _, _, Atom)
+  ;   pre_term(Hdt, Term, Atom),
+      hdt_triple_(Hdt, content, Atom, _, _),
+      hdt_triple_(Hdt, content, _, _, Atom)
   ),
-  post_term(Shared, Atom).
+  hdt_atom_to_term(Atom, Term).
 % sink
-hdt_term(Hdt, sink, Sink) :-
-  (   var(Sink)
+hdt_term(Hdt, sink, sink, Term) :-
+  (   var(Term)
   ->  hdt_term_(Hdt, sink, Atom)
-  ;   % O: Determine this based on ID offset.
-      pre_term(Hdt, Sink, Atom),
-      hdt_(Hdt, content, _, _, Atom),
-      \+ hdt_(Hdt, content, Atom, _, _)
+  ;   pre_term(Hdt, Term, Atom),
+      hdt_triple_(Hdt, content, _, _, Atom),
+      \+ hdt_triple_(Hdt, content, Atom, _, _)
   ),
-  post_term(Sink, Atom).
+  hdt_atom_to_term(Atom, Term).
 % source
-hdt_term(Hdt, source, Source) :-
-  (   var(Source)
+hdt_term(Hdt, source, source, Term) :-
+  (   var(Term)
   ->  hdt_term_(Hdt, source, Atom)
-  ;   % O: Determine this based on ID offset.
-      pre_term(Hdt, Source, Atom),
-      hdt_(Hdt, content, Atom, _, _),
-      \+ hdt_(Hdt, content, _, _, Atom)
+  ;   pre_term(Hdt, Term, Atom),
+      hdt_triple_(Hdt, content, Atom, _, _),
+      \+ hdt_triple_(Hdt, content, _, _, Atom)
   ),
-  post_term(Source, Atom).
-% subject
-hdt_term(Hdt, subject, S) :-
-  hdt_term(Hdt, source, S).
-hdt_term(Hdt, subject, S) :-
-  hdt_term(Hdt, shared, S).
-% term
-hdt_term(Hdt, term, Term) :-
-  hdt_term(Hdt, node, Term).
-hdt_term(Hdt, term, Term) :-
-  hdt_term(Hdt, predicate, Term),
-  \+ hdt_term(Hdt, node, Term).
+  hdt_atom_to_term(Atom, Term).
+% others: node, object, subject, term
+hdt_term(Hdt, Role, LeafRole, Term) :-
+  role_subrole(Role, SubRole),
+  hdt_term(Hdt, SubRole, LeafRole, Term).
 
 
 
-%! hdt_term_prefix(+Hdt:blob, ?Role:atom, +Prefix:atom,
-%!                 ?Term:rdf_term) is nondet.
+%! hdt_term_prefix(+Hdt:blob, ?Role:atom, +Prefix:atom, ?Term:rdf_term) is nondet.
+%! hdt_term_prefix(+Hdt:blob, ?Role:atom, +Prefix:atom, -LeafRole:atom, ?Term:rdf_term) is nondet.
 
 hdt_term_prefix(Hdt, Role, Prefix, Term) :-
-  pre_term(Hdt, Term, Atom),
-  hdt_term_prefix_(Hdt, Role, Prefix, Atom),
-  post_term(Term, Atom).
+  hdt_term_prefix(Hdt, Role, Prefix, _, Term).
+
+
+hdt_term_prefix(Hdt, Role, Prefix, LeafRole, Term) :-
+  role_leafrole(Role, LeafRole),
+  hdt_term_prefix_(Hdt, LeafRole, Prefix, Atom),
+  (atom_prefix(Atom, Prefix) -> true ; !, fail),
+  hdt_atom_to_term(Atom, Term).
 
 
 
 %! hdt_term_random(+Hdt:blob, +Role:atom, -Term:rdf_term) is nondet.
+%! hdt_term_random(+Hdt:blob, +Role:atom, -LeafRole:atom, -Term:rdf_term) is nondet.
 
-hdt_term_random(Hdt, node, Term) :- !,
-  maplist(hdt_term_count, [shared,sink,source], [N1,N2,N3]),
-  sum_list([N1,N2,N3], N),
-  random_between(1, N, Rnd),
-  (Rnd =< N1 -> Role = shared ; Rnd =< N2 -> Role = sink ; Role = source),
-  hdt_term_random(Hdt, Role, Term).
 hdt_term_random(Hdt, Role, Term) :-
+  hdt_term_random(Hdt, Role, _, Term).
+
+
+hdt_term_random(Hdt, Role, LeafRole, Term) :-
+  aggregate_all(set(LeafRole), role_leafrole(Role, LeafRole), LeafRoles),
+  maplist(hdt_term_count(Hdt), LeafRoles, Counts),
+  sum_list(Counts, Count),
+  random_between(1, Count, Index),
+  index_role(Index, Counts, LeafRoles, LeafRole),
   Rnd is random_float,
-  hdt_term_random_(Hdt, Role, Rnd, Term).
+  hdt_term_random_(Hdt, LeafRole, Rnd, Atom),
+  hdt_atom_to_term(Atom, Term).
+
+index_role(N, [Count|_], [Role|_], Role) :-
+  N =< Count, !.
+index_role(N1, [H|T1], [_|T2], Role) :-
+  N2 is N1 - H,
+  index_role(N2, T1, T2, Role).
 
 
 
-%! hdt_term_translate(+Hdt:blob, +Term:rdf_term, +Id:compound) is semidet.
-%! hdt_term_translate(+Hdt:blob, +Term:rdf_term, -Id:compound) is det.
-%! hdt_term_translate(+Hdt:blob, -Term:rdf_term, +Id:compound) is det.
 
-hdt_term_translate(Hdt, Term, id(Role,Id)) :-
+%! hdt_term_translate(+Hdt:blob, +Role:atom, ?Term:rdf_term, ?Id:compound) is det.
+
+hdt_term_translate(Hdt, Role, Term, Id) :-
   pre_term(Hdt, Term, Atom),
   hdt_term_translate_(Hdt, Role, Atom, Id),
-  post_term(Term, Atom).
+  hdt_atom_to_term(Atom, Term).
 
 
 
 %! hdt_triple(+Hdt:blob, ?S:rdf_nonliteral, ?P:rdf_iri, ?O:rdf_term) is nondet.
 %
-% True if 〈S,P,O〉 is an RDF triple in HDT.
+% True if 〈SId,SIP,SIO〉 is an integer triple in Hdt.
 
-hdt_triple_triple(Hdt, S, P, O) :-
-  pre_term(Hdt, O, Atom),
-  hdt_triple_(Hdt, content, S, P, Atom),
-  post_term(O, Atom).
+hdt_triple(Hdt, S, P, O) :-
+  pre_term(Hdt, O, OAtom),
+  hdt_triple_(Hdt, content, S, P, OAtom),
+  hdt_atom_to_term(OAtom, O),
+  (   debugging(hdt_term)
+  ->  dcg_debug(hdt_term, ("TP ",rdf_dcg_triple(S,P,O)))
+  ;   true
+  ).
 
 
 
-%! hdt_triple_count(+Hdt:blob, ?S:rdf_nonliteral, ?P:rdf_iri, ?O:rdf_term,
-%!                  -Count:nonneg) is det.
-%
-% True if Count is the number of matches of the Triple Pattern〈S,P,O〉
-% on the graph stored in HDT.
+%! hdt_triple_count(+Hdt:blob, ?S:rdf_nonliteral, ?P:rdf_iri, ?O:rdf_term, -Count:nonneg) is det.
 
 hdt_triple_count(Hdt, S, P, O, Count) :-
-  (var(S) -> true ; rdf_is_subject(S)), !,
-  pre_term(Hdt, O, Atom),
-  hdt_triple_count_(Hdt, S, P, Atom, Count).
+  pre_term(Hdt, O, OAtom),
+  hdt_count_(Hdt, S, P, OAtom, Count), !.
 hdt_triple_count(_, _, _, _, 0).
 
 
 
-%! hdt_triple_random(+Hdt:blob, ?S:rdf_nonliteral, ?P:rdf_iri,
-%!                   ?O:rdf_term) is semidet.
+%! hdt_triple_random(+Hdt:blob, ?S, ?P, ?O) is semidet.
 
 hdt_triple_random(Hdt, S, P, O) :-
-  pre_term(Hdt, O, Atom),
+  pre_term(Hdt, O, OAtom),
   Rnd is random_float,
-  hdt_triple_random_(Hdt, Rnd, S, P, Atom),
-  post_term(O, Atom).
+  hdt_triple_random_(Hdt, Rnd, S, P, OAtom),
+  hdt_atom_to_term(OAtom, O),
+  (   debugging(hdt_term)
+  ->  dcg_debug(hdt_term, ("random ",rdf_dcg_triple(S,P,O)))
+  ;   true
+  ).
 
 
 
-%! hdt_triple_translate(+Hdt:blob, +TermTriple:compound,
-%!                      -IdTriple:compound) is det.
-%! hdt_triple_translate(+Hdt:blob, -TermTriple:compound,
-%!                      +IdTriple:compound) is det.
+%! hdt_triple_translate(+Hdt:blob, +TermTriple:rdf_term, -IdTriple:compound) is det.
+%! hdt_triple_translate(+Hdt:blob, -TermTriple:rdf_term, +IdTriple:compound) is det.
 
-hdt_triple_translate(Hdt, rdf(S,P,O), rdf(SId,PId,OId)) :-
-  maplist(hdt_term_translate(Hdt), [S,P,O], [SId,PId,OId]).
+hdt_triple_translate(
+  Hdt,
+  rdf(S,P,O),
+  rdf(id(subject,SId),id(predicate,PId),id(object,OId))
+) :-
+  maplist(
+    hdt_term_translate(Hdt),
+    [subject,predicate,object],
+    [S,P,O],
+    [SId,PId,OId]
+  ).
 
 
 
 
 
 % OTHERS %
-
-%! hdt_property(+Hdt:blob, +Property:compound) is semidet.
-%! hdt_property(+Hdt:blob, ?Property:compound) is nondet.
-%
-%  True of Property is a property of HTD.  Defined properties are
-%
-%    * elements(-Count))
-%    * mapping(-Mapping)
-%    * max_id(-Id))
-%    * max_object_id(-Id))
-%    * max_predicate_id(-Id))
-%    * max_subject_id(-Id))
-%    * objects(-Count))
-%    * predicates(-Count))
-%    * shared(-Count))
-%    * subjects(-Count))
-
-hdt_property(Hdt, Property) :-
-  hdt_property(Property),
-  hdt_property_(Hdt, Property).
-
-hdt_property(elements(_)).
-hdt_property(mapping(_)).
-hdt_property(max_id(_)).
-hdt_property(max_object_id(_)).
-hdt_property(max_predicate_id(_)).
-hdt_property(max_subject_id(_)).
-hdt_property(objects(_)).
-hdt_property(predicates(_)).
-hdt_property(shared(_)).
-hdt_property(subjects(_)).
-
-
 
 %! pre_term(+Hdt:blob, ?O:rdf_term, -Atom:atom) is det.
 %
