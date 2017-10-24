@@ -40,12 +40,9 @@
 
 :- use_module(library(aggregate)).
 :- use_module(library(apply)).
-:- use_module(library(dcg/dcg_ext)).
-:- use_module(library(debug)).
 :- use_module(library(hdt_generic)).
 :- use_module(library(lists)).
 :- use_module(library(semweb/rdf_api)).
-:- use_module(library(semweb/rdf_print)).
 
 :- rdf_meta
    hdt_term(+, +, r),
@@ -192,11 +189,7 @@ hdt_term_translate(Hdt, Role, Term, Id) :-
 hdt_triple(Hdt, S, P, O) :-
   pre_term(Hdt, O, OAtom),
   hdt_triple_(Hdt, content, S, P, OAtom),
-  hdt_atom_to_term(OAtom, O),
-  (   debugging(hdt_term)
-  ->  dcg_debug(hdt_term, ("TP ",rdf_dcg_triple(S,P,O)))
-  ;   true
-  ).
+  hdt_atom_to_term(OAtom, O).
 
 
 
@@ -215,11 +208,7 @@ hdt_triple_random(Hdt, S, P, O) :-
   pre_term(Hdt, O, OAtom),
   Rnd is random_float,
   hdt_triple_random_(Hdt, Rnd, S, P, OAtom),
-  hdt_atom_to_term(OAtom, O),
-  (   debugging(hdt_term)
-  ->  dcg_debug(hdt_term, ("random ",rdf_dcg_triple(S,P,O)))
-  ;   true
-  ).
+  hdt_atom_to_term(OAtom, O).
 
 
 

@@ -1,6 +1,12 @@
-:- module(test_hdt_term, []).
+:- module(test_hdt11, []).
+:- reexport(library(hdt11)).
 
-:- reexport(library(hdt_term)).
+/** <module> Tests for the HDT library consistent with rdf11
+
+@author Wouter Beek
+@author Jan Wielemaker
+@version 2017/09-2017/10
+*/
 
 :- use_module(library(apply)).
 :- use_module(library(plunit)).
@@ -21,13 +27,13 @@ test(count, [cleanup(hdt_close(Hdt)),
 test(node, [cleanup(hdt_close(Hdt)),
             nondet,
             setup(hdt_open('test-1.hdt', Hdt)),
-            set(Term = ['_:x',literal(type('y:y','x:x'))])]) :-
+            set(Term = ['_:x',"x:x"^^'y:y'])]) :-
   hdt_term(Hdt, node, Term).
 
 test(object, [cleanup(hdt_close(Hdt)),
               nondet,
               setup(hdt_open('test-1.hdt', Hdt)),
-              set(Term = [literal(type('y:y','x:x'))])]) :-
+              set(Term = ["x:x"^^'y:y'])]) :-
   hdt_term(Hdt, object, Term).
 
 test(predicate, [cleanup(hdt_close(Hdt)),
@@ -51,7 +57,7 @@ test(subject, [cleanup(hdt_close(Hdt)),
 test(hdt, [cleanup(hdt_close(Hdt)),
            nondet,
            setup(hdt_open('test-1.hdt', Hdt)),
-           set(Triple == [rdf('_:x','x:x',literal(type('y:y','x:x')))])]) :-
+           set(Triple == [rdf('_:x','x:x',"x:x"^^'y:y')])]) :-
   hdt_triple(Hdt, S, P, O),
   Triple = rdf(S,P,O).
 

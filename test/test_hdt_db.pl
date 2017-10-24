@@ -1,6 +1,12 @@
-:- module(test_hdt_atom, []).
+:- module(test_hdt_db, []).
+:- reexport(library(hdt_db)).
 
-:- reexport(library(hdt_atom)).
+/** <module> Tests for the HDT library consistent with rdf_db
+
+@author Wouter Beek
+@author Jan Wielemaker
+@version 2017/09-2017/10
+*/
 
 :- use_module(library(apply)).
 :- use_module(library(plunit)).
@@ -15,44 +21,44 @@ test(count, [cleanup(hdt_close(Hdt)),
              nondet,
              setup(hdt_open('test-1.hdt', Hdt)),
              true(Count =:= 1)]) :-
-  hdt_triple_count(Hdt, atom(subject,'_:x'), _, _, Count).
+  hdt_triple_count(Hdt, '_:x', _, _, Count).
 
 test(node, [cleanup(hdt_close(Hdt)),
             nondet,
             setup(hdt_open('test-1.hdt', Hdt)),
-            set(Atom = ['_:x','"x:x"^^<y:y>'])]) :-
-  hdt_term(Hdt, node, atom(_,Atom)).
+            set(Node = ['_:x',literal(type('y:y','x:x'))])]) :-
+  hdt_term(Hdt, node, Node).
 
 test(object, [cleanup(hdt_close(Hdt)),
               nondet,
               setup(hdt_open('test-1.hdt', Hdt)),
-              set(Atom = ['"x:x"^^<y:y>'])]) :-
-  hdt_term(Hdt, object, atom(_,Atom)).
+              set(O = [literal(type('y:y','x:x'))])]) :-
+  hdt_term(Hdt, object, O).
 
 test(predicate, [cleanup(hdt_close(Hdt)),
                  nondet,
                  setup(hdt_open('test-1.hdt', Hdt)),
-                 set(Atom = ['x:x'])]) :-
-  hdt_term(Hdt, predicate, atom(_,Atom)).
+                 set(P = ['x:x'])]) :-
+  hdt_term(Hdt, predicate, P).
 
 test(shared, [cleanup(hdt_close(Hdt)),
               nondet,
               setup(hdt_open('test-1.hdt', Hdt)),
-              set(Atom = [])]) :-
-  hdt_term(Hdt, shared, atom(_,Atom)).
+              set(Shared = [])]) :-
+  hdt_term(Hdt, shared, Shared).
 
 test(subject, [cleanup(hdt_close(Hdt)),
                nondet,
                setup(hdt_open('test-1.hdt', Hdt)),
-               set(Atom = ['_:x'])]) :-
-  hdt_term(Hdt, subject, atom(_,Atom)).
+               set(S = ['_:x'])]) :-
+  hdt_term(Hdt, subject, S)).
 
 test(hdt, [cleanup(hdt_close(Hdt)),
            nondet,
            setup(hdt_open('test-1.hdt', Hdt)),
-           set(Triple == [rdf('_:x','x:x','"x:x"^^<y:y>')])]) :-
-  hdt_triple(Hdt, atom(_,SAtom), atom(_,PAtom), atom(_,OAtom)),
-  Triple = rdf(SAtom,PAtom,OAtom).
+           set(Triple == [rdf('_:x','x:x',literal(type('y:y','x:x')))])]) :-
+  hdt_triple(Hdt, S, P, O),
+  Triple = rdf(S,P,O).
 
 :- end_tests(hdt).
 

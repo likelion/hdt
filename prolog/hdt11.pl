@@ -43,14 +43,12 @@
 :- use_module(library(dcg/basics)).
 :- use_module(library(error)).
 :- use_module(library(filesex)).
+:- use_module(library(hdt_generic)).
 :- use_module(library(lists)).
 :- use_module(library(option)).
 :- use_module(library(semweb/rdf_api)).
 :- use_module(library(sgml)).
 :- use_module(library(uri)).
-:- use_module(library(xsd/xsd)).
-
-:- use_foreign_library(foreign(hdt4pl)).
 
 :- rdf_meta
    hdt_term(+, +, o),
@@ -193,11 +191,7 @@ hdt_term_translate(Hdt, Role, Term, Id) :-
 hdt_triple(Hdt, S, P, O) :-
   pre_term(Hdt, O, OAtom),
   hdt_triple_(Hdt, content, S, P, OAtom),
-  hdt_atom_to_term(OAtom, O),
-  (   debugging(hdt_term)
-  ->  dcg_debug(hdt_term, ("TP ",rdf_dcg_triple(S,P,O)))
-  ;   true
-  ).
+  hdt_atom_to_term(OAtom, O).
 
 
 
@@ -216,11 +210,7 @@ hdt_triple_random(Hdt, S, P, O) :-
   pre_term(Hdt, O, OAtom),
   Rnd is random_float,
   hdt_triple_random_(Hdt, Rnd, S, P, OAtom),
-  hdt_atom_to_term(OAtom, O),
-  (   debugging(hdt_term)
-  ->  dcg_debug(hdt_term, ("random ",rdf_dcg_triple(S,P,O)))
-  ;   true
-  ).
+  hdt_atom_to_term(OAtom, O).
 
 
 
@@ -257,7 +247,7 @@ pre_term(Hdt, Lex@LTag, Atom) :- !,
   must_be(string, Lex),
   (   var(LTag)
   ->  atomic_list_concat(['"',Lex,'"@'], Prefix),
-      hdt_prefix_(Hdt, sink, Prefix, O),
+      hdt_term_prefix_(Hdt, sink, Prefix, O),
       pre_term(Hdt, O, Atom)
   ;   atomic_list_concat(['"',Lex,'"@',LTag], Atom)
   ).
@@ -266,7 +256,7 @@ pre_term(Hdt, Val^^D, Atom) :- !,
   rdf_lexical_form(Val^^D, Lex^^D),
   (   var(D)
   ->  atomic_list_concat(['"',Lex,'"^^<'], Prefix),
-      hdt_prefix_(Hdt, sink, Prefix, O),
+      hdt_term_prefix_(Hdt, sink, Prefix, O),
       pre_term(Hdt, O, Atom)
   ;   atomic_list_concat(['"',Lex,'"^^<',D,>], Atom)
   ).

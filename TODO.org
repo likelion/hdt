@@ -1,5 +1,0 @@
-* TODO Support for term type roles
-** TODO bnode
-** TODO iri
-** TODO literal
-** TODO name

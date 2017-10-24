@@ -20,8 +20,7 @@
 
 /** <module> HDT generic
 
-Code that is shared between the various implementations of the HDT
-API.
+Code that is shared between the two HDT APIs.
 
 @author Wouter Beek
 @author Jan Wielemaker
