@@ -1,0 +1,181 @@
+#+TITLE: HDT/Prolog API
+#+AUTHOR: Wouter Beek, Jan Wielemaker
+
+This repository provides a [[http://www.swi-prolog.org][Prolog API]] to the [[http://www.rdfhdt.org/][Header Dictionary Triples
+(HDT)]] storage format for RDF data.
+
+HDT provides a complementary apprach to SWI-Prolog's memory-based RDF
+store.  It allows large amounts of static background knowledge to be
+accessed without enlarging the memory footprint.
+
+* Installation
+
+After installing a recent version of [[http://www.swi-prolog.org][SWI-Prolog]], installation can be
+performed through the SWI-Prolog package manager:
+
+#+BEGIN_SRC sh
+$ swipl
+?- pack_install(hdt).
+#+END_SRC
+
+* Usage
+
+After starting [[http://www.swi-prolog.org][SWI-Prolog]], the library is loaded in the following way:
+
+#+BEGIN_SRC sh
+?- [library(hdt11)].
+#+END_SRC
+
+** Handling files
+
+*** Creating an HDT file
+
+Assuming you already have an N-Triples file called ~test.nt~, you can
+create a corresponding HDT file in the following way:
+
+#+BEGIN_SRC prolog
+?- hdt_create('test.nt').
+#+END_SRC
+
+*** Opening an HDT file
+
+Now that you have an HDT file called ~test.hdt~, you can open it in
+the following way:
+
+#+BEGIN_SRC prolog
+?- hdt_open('test.hdt', Hdt).
+#+END_SRC
+
+~Hdt~ will be instantiated to a handle to the opened HDT file.  You
+can now access the opened HDT by using variable ~$Hdt~.  See the
+sections [[RDF terms]] and [[RDF triples]] for examples of what you can do
+with an open HDT file.
+
+*** Closing an HDT file
+
+After your have performed your operations, you can close the HDT file
+in the following way:
+
+#+BEGIN_SRC prolog
+?- hdt_close($Hdt).
+#+END_SRC
+
+It is good practice to close HDT files, since this frees up system
+resources.  Suppose your operations on an HDT files are performed by a
+Prolog predicate ~algorithm/1~.  You can then safely open&close the
+HDT file in the following way:
+
+#+BEGIN_SRC prolog
+?- setup_call_cleanup(
+     hdt_open('test.hdt', Hdt),
+     algorithm(Hdt),
+     hdt_close(Hdt)
+   ).
+#+END_SRC
+
+This way, the HDT file will always be closed, even if ~algorithm/1~
+throws an error.
+
+** Triples
+
+The HDT API exposes several operations on RDF triples.  We assume that
+you have already opened an HDT file whose handle is instantated by
+variable ~$Hdt~ (see [[Opening an HDT file]]).
+
+*** Enumerating triples
+
+All triples can be non-deterministically enumerated in the following
+way:
+
+#+BEGIN_SRC prolog
+?- hdt_triple($Hdt, S, P, O).
+#+END_SRC
+
+Non-determinism means that the next result can be obtained by entering
+the disjunction command: ~;~.
+
+In order to enumerate a subset of all triples, any combination of ~S~,
+~P~, and ~O~ can be instantiated.  For example, the following
+non-deterministically enumerates all and only indentity statements:
+
+#+BEGIN_SRC prolog
+?- hdt_triple($Hdt, S, owl:sameAs, O).
+#+END_SRC
+
+*** Counting triples
+
+Count the number of triples that adhere to a given Triple Fragment:
+
+#+BEGIN_SRC prolog
+?- hdt_triple_count($Hdt, S, P, O, N).
+#+END_SRC
+
+*** Random triples
+
+Give one randomly chosen triple:
+
+#+BEGIN_SRC prolog
+?- hdt_triple_random($Hdt, S, P, O).
+#+END_SRC
+
+** RDF terms
+
+The HDT API exposes several operations on RDF terms.
+
+*** Term roles
+
+RDF terms can appear in different roles.  One set of roles denotes the
+syntactic kind of a term.  Another set of roles denotes the positional
+appearance of a term.
+
+**** Syntactic term roles 
+
+| *Syntactic role* | *Description*                    |
+|------------------+----------------------------------|
+| ~bnode~          | Terms that are blank nodes.      |
+| ~iri~            | Terms that are IRIs.             |
+| ~literal~        | Terms that are literals.         |
+| ~name~           | Terms that are IRIs or literals. |
+
+**** Positional term roles
+
+| *Positional role* | *Description*                                         |
+|-------------------+-------------------------------------------------------|
+| ~node~            | Terms that appear in the subject or object position.  |
+| ~object~          | Terms that appear in the object position.             |
+| ~predicate~       | Terms that appear in the predicate position.          |
+| ~shared~          | Terms that appear in the subject and object position. |
+| ~sink~            | Terms that only appear in the object position.        |
+| ~source~          | Terms that only appear in the subject position.       |
+| ~subject~         | Terms that appear in the subject position.            |
+
+*** Enumerating terms
+
+#+BEGIN_SRC prolog
+?- hdt_term($Hdt, subject, S).
+#+END_SRC
+
+*** Counting terms
+
+#+BEGIN_SRC prolog
+?- hdt_term_count($Hdt, subject, N).
+#+END_SRC
+
+*** Enumerating terms by prefix
+
+#+BEGIN_SRC prolog
+?- hdt_term_prefix($Hdt, predicate, 'http://purl.org', P).
+#+END_SRC
+
+*** Random terms
+
+#+BEGIN_SRC prolog
+?- hdt_term_random($Hdt, sink, Term).
+#+END_SRC
+
+* Support
+
+This repository uses [[https://github.com/rdfhdt/hdt-cpp.git][the C++ implementation of HDT]].  Installation and
+usage is tested on /[[https://www.ubuntu.com/][Ubuntu]]/ and /[[https://getfedora.org][Fedora]]/, and should work on most
+Unix-like machines.  Installation on /[[https://www.microsoft.com/en-us/windows][Windows]]/ requires more
+creativity.
