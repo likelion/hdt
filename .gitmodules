@@ -1,7 +1,7 @@
 [submodule "hdt-cpp"]
 	path = hdt-cpp
 	url = https://github.com/rdfhdt/hdt-cpp.git
-	branch = develop
+	branch = develop-64
 [submodule "serd"]
 	path = serd
 	url = https://github.com/drobilla/serd
