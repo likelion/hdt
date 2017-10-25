@@ -46,7 +46,7 @@
 :- use_module(library(error)).
 :- use_module(library(lists)).
 :- use_module(library(semweb/hdt_generic)).
-:- use_module(library(semweb/rdf_api)).
+:- use_module(library(semweb/rdf11)).
 
 :- rdf_meta
    hdt_term(+, +, o),
@@ -77,7 +77,7 @@ literal_codes(literal(lang(LTag0,Lex0)), String@LTag) :- !,
   string_codes(String, Lex0).
 literal_codes(literal(type(D0,Lex0)), Value^^D) :- !,
   maplist(atom_codes, [D,Lex], [D0,Lex0]),
-  rdf_lexical_value(D, Lex, Value).
+  rdf11:out_type(D, Value, Lex).
 literal_codes(literal(Lex0), String^^xsd:string) :-
   string_codes(String, Lex0).
 
