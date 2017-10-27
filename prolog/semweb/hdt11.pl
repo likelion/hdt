@@ -241,16 +241,16 @@ hdt_triple_translate(
 
 pre_term(_, Var, _) :-
   var(Var), !.
-pre_term(Hdt, Lex@LTag, Atom) :- !,
-  must_be(string, Lex),
+pre_term(Hdt, Lex@LTag, Atom) :-
+  ground(Lex), !,
   (   var(LTag)
   ->  atomic_list_concat(['"',Lex,'"@'], Prefix),
       hdt_term_prefix_(Hdt, sink, Prefix, O),
       pre_term(Hdt, O, Atom)
   ;   atomic_list_concat(['"',Lex,'"@',LTag], Atom)
   ).
-pre_term(Hdt, Val^^D, Atom) :- !,
-  must_be(ground, Val),
+pre_term(Hdt, Val^^D, Atom) :-
+  ground(Val), !,
   rdf_lexical_form(Val^^D, Lex^^D),
   (   var(D)
   ->  atomic_list_concat(['"',Lex,'"^^<'], Prefix),
@@ -258,7 +258,7 @@ pre_term(Hdt, Val^^D, Atom) :- !,
       pre_term(Hdt, O, Atom)
   ;   atomic_list_concat(['"',Lex,'"^^<',D,>], Atom)
   ).
-pre_term(_, NonLiteral, NonLiteral).
+pre_term(_, _, _).
 
 
 
