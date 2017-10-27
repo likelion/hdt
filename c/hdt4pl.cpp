@@ -241,16 +241,16 @@ PREDICATE(hdt_open_, 3)
   int indexed = TRUE;
   PlTail options(A3);
   PlTerm opt;
-  char *name;
+  char *fileName;
   while(options.next(opt)) {
-    atom_t name;
-    size_t arity;
-    if (PL_get_name_arity(opt, &name, &arity) && arity == 1) {
+    atom_t optName;
+    size_t optArity;
+    if (PL_get_name_arity(opt, &optName, &optArity) && optArity == 1) {
       PlTerm ov = opt[1];
-      if (name == ATOM_access) {
+      if (optName == ATOM_access) {
         if (!PL_get_atom_ex(ov, &access))
           return FALSE;
-      } else if (name == ATOM_indexed) {
+      } else if (optName == ATOM_indexed) {
         if (!PL_get_bool_ex(ov, &indexed))
           return FALSE;
       }
@@ -258,17 +258,17 @@ PREDICATE(hdt_open_, 3)
       return PL_type_error("option", opt);
     }
   }
-  if (!PL_get_file_name(A1, &name, PL_FILE_EXIST))
+  if (!PL_get_file_name(A1, &fileName, PL_FILE_EXIST))
     return FALSE;
   try {
     if (access == ATOM_map) {
       if (indexed)
-        hdt = HDTManager::mapIndexedHDT(name);
+        hdt = HDTManager::mapIndexedHDT(fileName);
       else
         hdt = HDTManager::mapHDT(A1);
     } else if (access == ATOM_load) {
       if (indexed)
-        hdt = HDTManager::loadIndexedHDT(name);
+        hdt = HDTManager::loadIndexedHDT(fileName);
       else
         hdt = HDTManager::loadHDT(A1);
     } else {
