@@ -133,8 +133,7 @@ extension_format(ttl, turtle).
 % Closes the HDT file denoted by the named graph `G`.
 
 hdt_deinit :-
-  rdf_default_graph(G),
-  hdt_deinit(G).
+  forall(hdt_graph(G), hdt_deinit(G)).
 
 
 hdt_deinit(G) :-
