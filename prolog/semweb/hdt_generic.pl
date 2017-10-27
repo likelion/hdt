@@ -118,7 +118,12 @@ hdt_create(RdfFile, HdtFile, Options1) :-
   ;   true
   ),
 
-  hdt_create_(HdtFile, RdfFile, Options2).
+  % Set the base URI.
+  ignore(option(base_uri(BaseUri), Options1)),
+  (ground(BaseUri) -> true ; uri_file_name(BaseUri, HdtFile)),
+
+  merge_options([base_uri(BaseUri)], Options2, Options3),
+  hdt_create_(HdtFile, RdfFile, Options3).
 
 extension_format(n3, n3).
 extension_format(nq, nquads).
