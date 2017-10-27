@@ -962,6 +962,6 @@ PREDICATE(hdt_create_, 3)
     //header->insert("myResource1", "property", "value");
     hdt->saveToHDT(hdt_file);
     delete hdt;
-  } CATCH_HDT
+  } CATCH_HDT;
   return TRUE;
 }
