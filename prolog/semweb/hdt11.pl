@@ -258,7 +258,7 @@ pre_term(Hdt, Val^^D, Atom) :-
       pre_term(Hdt, O, Atom)
   ;   atomic_list_concat(['"',Lex,'"^^<',D,>], Atom)
   ).
-pre_term(_, _, _).
+pre_term(_, Atom, Atom).
 
 
 

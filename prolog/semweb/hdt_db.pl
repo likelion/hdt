@@ -261,4 +261,4 @@ pre_term(Hdt, literal(type(D,Lex)), Atom) :- !,
 pre_term(_, literal(Lex), Atom) :-
   ground(Lex), !,
   atomic_list_concat(['"',Lex,'"'], Atom).
-pre_term(_, _, _).
+pre_term(_, Atom, Atom).
