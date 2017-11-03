@@ -22,6 +22,7 @@
     hdt_triple/4,           % +Hdt, ?S, ?P, ?O
     hdt_triple_count/5,     % +Hdt, ?S, ?P, ?O, ?Count
     hdt_triple_id/3,        % +Hdt, ?TermTriple, ?IdTriple
+    hdt_triple_lexical/4,   % +Hdt, ?S, ?P, ?OLex
     hdt_triple_random/4,    % +Hdt, ?S, ?P, ?O
   % OPERATORS
     op(110, xfx, @),        % must be above `.'
@@ -56,15 +57,15 @@
    atom_literal_(+, o),
    hdt_term(+, +, o),
    hdt_term(+, +, -, o),
+   hdt_term_id(+, o, ?),
    hdt_term_prefix(+, +, +, o),
    hdt_term_prefix(+, +, +, -, o),
-   hdt_term_translate(+, o, ?),
    hdt(+, r, r, o),
    hdt_triple(+, r, r, o),
    hdt_triple_count(+, r, r, o, ?),
+   hdt_triple_id(+, t, ?),
+   hdt_triple_lexical(+, r, r, o),
    hdt_triple_random(+, r, r, o),
-   hdt_triple_term(+, r, r, o),
-   hdt_triple_translate(+, t, ?),
    literal_codes(+, o).
 
 
@@ -384,6 +385,19 @@ hdt_triple_id(
 
 
 
+%! hdt_triple_lexical(+Hdt:blob, ?S, ?P, ?O) is nondet.
+%
+% True if 〈S,P,O〉 is a triple in Hdt, where object O is an
+% uninterpreted Prolog compound term of the form
+% `literal(lang(LTag:atom,Lex:atom))` or
+% `literal(type(D:atom,Lex:atom))`.
+
+hdt_triple_lexical(Hdt, S, P, O) :-
+  pre_term(Hdt, O, O),
+  hdt_triple_(Hdt, content, S, P, O).
+
+
+
 %! hdt_triple_random(+Hdt:blob, ?S, ?P, ?O) is semidet.
 
 hdt_triple_random(Hdt, S, P, O) :-
@@ -391,19 +405,6 @@ hdt_triple_random(Hdt, S, P, O) :-
   Rnd is random_float,
   hdt_triple_random_(Hdt, Rnd, S, P, OAtom),
   post_term(OAtom, O).
-
-
-
-%! hdt_triple_uninterpreted(+Hdt:blob, ?S, ?P, ?O) is nondet.
-%
-% True if 〈S,P,O〉 is a triple in Hdt, where object O is an
-% uninterpreted Prolog compound term of the form
-% `literal(lang(LTag:atom,Lex:atom))` or
-% `literal(type(D:atom,Lex:atom))`.
-
-hdt_triple_uninterpreted(Hdt, S, P, O) :-
-  pre_term(Hdt, O, O),
-  hdt_triple_(Hdt, content, S, P, O).
 
 
 

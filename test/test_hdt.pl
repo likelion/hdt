@@ -61,11 +61,11 @@ test(triple, [cleanup(hdt_close(Hdt)),
   hdt_triple(Hdt, S, P, O),
   Triple = rdf(S,P,O).
 
-test(triple_uninterpreted, [cleanup(hdt_close(Hdt)),
-                            nondet,
-                            setup(hdt_open(Hdt, 'test-1.hdt')),
-                            set(Triple == [rdf('_:x','x:x',"x:x"^^'y:y')])]) :-
-  hdt:hdt_triple_uninterpreted(Hdt, S, P, O),
+test(triple_lexical, [cleanup(hdt_close(Hdt)),
+                      nondet,
+                      setup(hdt_open(Hdt, 'test-1.hdt')),
+                      set(Triple == [rdf('_:x','x:x',"x:x"^^'y:y')])]) :-
+  hdt_triple_lexical(Hdt, S, P, O),
   Triple = rdf(S,P,O).
 
 :- end_tests(hdt).
