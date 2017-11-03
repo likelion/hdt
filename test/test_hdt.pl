@@ -64,7 +64,7 @@ test(triple, [cleanup(hdt_close(Hdt)),
 test(triple_uninterpreted, [cleanup(hdt_close(Hdt)),
                             nondet,
                             setup(hdt_open(Hdt, 'test-1.hdt')),
-                            set(Triple == [rdf('_:x','x:x','x:x'^^'y:y')])]) :-
+                            set(Triple == [rdf('_:x','x:x',"x:x"^^'y:y')])]) :-
   hdt:hdt_triple_uninterpreted(Hdt, S, P, O),
   Triple = rdf(S,P,O).
 

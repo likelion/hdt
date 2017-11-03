@@ -208,40 +208,6 @@ hdt_property(subjects(_)).
 
 % TERMS %
 
-%! hdt_atom_to_term(+Atom:atom, -Term:rdf_term) is det.
-
-hdt_atom_to_term(Atom, Literal) :-
-  atom_codes(Atom, Codes),
-  phrase(hdt_literal1(Literal0), Codes), !,
-  literal_codes(Literal0, Literal).
-hdt_atom_to_term(NonLiteral, NonLiteral).
-
-hdt_literal1(Literal0) -->
-  "\"",
-  string(Lex0),
-  "\"",
-  hdt_literal2(Lex0, Literal0).
-
-hdt_literal2(Lex0, literal(type(D0,Lex0))) -->
-  "^^<",
-  string_without("\">", D0),
-  ">".
-hdt_literal2(Lex0, literal(lang(LTag0,Lex0))) -->
-  "@",
-  string_without("\"", LTag0).
-hdt_literal2(Lex0, literal(Lex0)) --> "".
-
-literal_codes(literal(lang(LTag0,Lex0)), String@LTag) :- !,
-  atom_codes(LTag, LTag0),
-  string_codes(String, Lex0).
-literal_codes(literal(type(D0,Lex0)), Value^^D) :- !,
-  maplist(atom_codes, [D,Lex], [D0,Lex0]),
-  rdf11:out_type(D, Value, Lex).
-literal_codes(literal(Lex0), String^^xsd:string) :-
-  string_codes(String, Lex0).
-
-
-
 %! hdt_term(+Hdt:blob, +Role:atom, +Term:rdf_term) is semidet.
 %! hdt_term(+Hdt:blob, +Role:atom, -Term:rdf_term) is nondet.
 %! hdt_term(+Hdt:blob, +Role:atom, -LeafRole:atom, +Term:rdf_term) is semidet.
@@ -265,7 +231,7 @@ hdt_term(Hdt, shared, shared, Term) :-
       hdt_triple_(Hdt, content, Atom, _, _),
       hdt_triple_(Hdt, content, _, _, Atom)
   ),
-  hdt_atom_to_term(Atom, Term).
+  post_term(Atom, Term).
 % sink
 hdt_term(Hdt, sink, sink, Term) :-
   (   var(Term)
@@ -274,7 +240,7 @@ hdt_term(Hdt, sink, sink, Term) :-
       hdt_triple_(Hdt, content, _, _, Atom),
       \+ hdt_triple_(Hdt, content, Atom, _, _)
   ),
-  hdt_atom_to_term(Atom, Term).
+  post_term(Atom, Term).
 % source
 hdt_term(Hdt, source, source, Term) :-
   (   var(Term)
@@ -283,7 +249,7 @@ hdt_term(Hdt, source, source, Term) :-
       hdt_triple_(Hdt, content, Atom, _, _),
       \+ hdt_triple_(Hdt, content, _, _, Atom)
   ),
-  hdt_atom_to_term(Atom, Term).
+  post_term(Atom, Term).
 % others: node, object, subject, term
 hdt_term(Hdt, Role, LeafRole, Term) :-
   role_subrole(Role, SubRole),
@@ -333,7 +299,7 @@ hdt_term_prefix(Hdt, Role, Prefix, LeafRole, Term) :-
   role_leafrole(Role, LeafRole),
   hdt_term_prefix_(Hdt, LeafRole, Prefix, Atom),
   (atom_prefix(Atom, Prefix) -> true ; !, fail),
-  hdt_atom_to_term(Atom, Term).
+  post_term(Atom, Term).
 
 
 
@@ -352,7 +318,7 @@ hdt_term_random(Hdt, Role, LeafRole, Term) :-
   index_role(Index, Counts, LeafRoles, LeafRole),
   Rnd is random_float,
   hdt_term_random_(Hdt, LeafRole, Rnd, Atom),
-  hdt_atom_to_term(Atom, Term).
+  post_term(Atom, Term).
 
 index_role(N, [Count|_], [Role|_], Role) :-
   N =< Count, !.
@@ -367,7 +333,7 @@ index_role(N1, [H|T1], [_|T2], Role) :-
 hdt_term_id(Hdt, Role, Term, Id) :-
   pre_term(Hdt, Term, Atom),
   hdt_term_id_(Hdt, Role, Atom, Id),
-  hdt_atom_to_term(Atom, Term).
+  post_term(Atom, Term).
 
 
 
@@ -391,7 +357,7 @@ hdt(Hdt, S, P, O) :-
 hdt_triple(Hdt, S, P, O) :-
   pre_term(Hdt, O, OAtom),
   hdt_triple_(Hdt, content, S, P, OAtom),
-  hdt_atom_to_term(OAtom, O).
+  post_term(OAtom, O).
 
 
 
@@ -424,7 +390,7 @@ hdt_triple_random(Hdt, S, P, O) :-
   pre_term(Hdt, O, OAtom),
   Rnd is random_float,
   hdt_triple_random_(Hdt, Rnd, S, P, OAtom),
-  hdt_atom_to_term(OAtom, O).
+  post_term(OAtom, O).
 
 
 
@@ -436,21 +402,8 @@ hdt_triple_random(Hdt, S, P, O) :-
 % `literal(type(D:atom,Lex:atom))`.
 
 hdt_triple_uninterpreted(Hdt, S, P, O) :-
-  pre_term(Hdt, O, OAtom),
-  hdt_triple_(Hdt, content, S, P, OAtom),
-  (   atom_codes(OAtom, OCodes1),
-      phrase(hdt_literal1(OCodes2), OCodes1)
-  ->  uninterpreted_literal_codes(OCodes2, O)
-  ;   O = OAtom
-  ).
-
-uninterpreted_literal_codes(literal(lang(LTagCodes,LexCodes)), Lex@LTag) :- !,
-  maplist(atom_codes, [LTag,Lex], [LTagCodes,LexCodes]).
-uninterpreted_literal_codes(literal(type(DCodes,LexCodes)), Lex^^D) :- !,
-  maplist(atom_codes, [D,Lex], [DCodes,LexCodes]).
-uninterpreted_literal_codes(literal(LexCodes), Literal) :-
-  atom_codes(Lex, LexCodes),
-  rdf_global_object(Literal, Lex^^xsd:string).
+  pre_term(Hdt, O, O),
+  hdt_triple_(Hdt, content, S, P, O).
 
 
 
@@ -479,6 +432,15 @@ closure0(Goal_2, X, Z, Hist):-
 leafrole(Role) :-
   role_subrole(_, Role),
   \+ role_subrole(Role, _).
+
+
+
+%! post_term(+Atom:atom, -Term:rdf_term) is det.
+
+post_term(String@LTag, String@LTag) :- !.
+post_term(Lex^^D, Value^^D) :- !,
+  rdf11:out_type(D, Value, Lex).
+post_term(NonLiteral, NonLiteral).
 
 
 

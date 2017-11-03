@@ -47,7 +47,8 @@ using namespace std;
 static void deleteHDT(HDT *hdt);
 static int get_dict_section(term_t t, DictionarySection *section);
 static int get_triple_role(term_t t, TripleComponentRole *role);
-static int unify_string(term_t t, const std::string);
+static int unify_object(term_t t, const char *str);
+static int unify_nonliteral(term_t t, const char *str);
 static size_t rnd_between(double rnd, size_t min, size_t max);
 
 #define CATCH_HDT \
@@ -60,7 +61,8 @@ static size_t rnd_between(double rnd, size_t min, size_t max);
   }
 
 #define CVT_TEXT (CVT_ATOM|CVT_STRING|CVT_EXCEPTION|REP_UTF8)
-#define TERM_TEXT (PL_ATOM | REP_UTF8)
+#define ATOM_TEXT (PL_ATOM | REP_UTF8)
+#define STRING_TEXT (PL_STRING | REP_UTF8)
 
 extern "C" {
 
@@ -354,12 +356,9 @@ PREDICATE_NONDET(hdt_triple_, 5)
     {
       if (ctx->it->hasNext()) {
         TripleString *t = ctx->it->next();
-        if ((!(ctx->flags&S_S) ||
-              unify_string(A3, t->getSubject().c_str())) &&
-             (!(ctx->flags&S_P) ||
-              unify_string(A4, t->getPredicate().c_str())) &&
-             (!(ctx->flags&S_O) ||
-              unify_string(A5, t->getObject().c_str()))) {
+        if ((!(ctx->flags&S_S) || unify_nonliteral(A3, t->getSubject().c_str())) &&
+            (!(ctx->flags&S_P) || unify_nonliteral(A4, t->getPredicate().c_str())) &&
+            (!(ctx->flags&S_O) || unify_object(A5, t->getObject().c_str()))) {
           if (ctx == &ctx_buf) {
             ctx = (search_it*)PL_malloc(sizeof(*ctx));
             *ctx = ctx_buf;
@@ -383,9 +382,56 @@ PREDICATE_NONDET(hdt_triple_, 5)
   return FALSE;
 }
 
-static int unify_string(term_t t, const std::string s)
+
+static int unify_object(term_t t, const char *s)
 {
-  return PL_unify_chars(t, TERM_TEXT, (size_t)-1, s.c_str());
+  if ( s[0] == '"' ) {
+    const char *e = s+strlen(s)-1;
+    for(;; e--) {
+      while( e>s && *e != '"' )
+        e--;
+      if ( e > s ) {
+        if ( e[1] == '\0' )	{
+          // No datatype IRI and no language tag?  This occurs in the
+          // HDT header…
+          int rc;
+          s++;
+          rc = PL_unify_chars(t, STRING_TEXT, e-s, s);
+          return rc;
+        } else if ( strncmp(e+1, "^^<", 3) == 0 ) {
+          term_t av = PL_new_term_refs(2);
+          int rc;
+          s++;
+          rc = PL_unify_chars(av+0, STRING_TEXT, e-s, s);
+          e += 4;
+          rc = rc && PL_unify_chars(av+1, ATOM_TEXT, strlen(e)-1, e);
+          rc = rc && PL_cons_functor_v(av, FUNCTOR_rdftype2, av);
+          rc = rc && PL_unify(t, av);
+          return rc;
+        } else if ( strncmp(e+1, "@", 1) == 0 ) {
+          term_t av = PL_new_term_refs(2);
+          int rc;
+          s++;
+          rc = PL_unify_chars(av+0, STRING_TEXT, e-s, s);
+          e += 2;
+          rc = rc && PL_unify_chars(av+1, ATOM_TEXT, (size_t)-1, e);
+          rc = rc && PL_cons_functor_v(av, FUNCTOR_rdflang2, av);
+          rc = rc && PL_unify(t, av);
+          return rc;
+        }
+      } else{
+        assert(0);
+        return FALSE;
+      }
+    }
+  }
+  return PL_unify_chars(t, ATOM_TEXT, (size_t)-1, s);
+}
+
+
+static int unify_nonliteral(term_t t, const char *s)
+{
+  return PL_unify_chars(t, ATOM_TEXT, (size_t)-1, s);
 }
 
 
@@ -414,7 +460,7 @@ PREDICATE_NONDET(hdt_term_prefix_, 4)
   next:
     if (it->hasNext()) {
       unsigned char *s {it->next()};
-      int rc {PL_unify_chars(A4, TERM_TEXT, (size_t)-1, (const char*)s)};
+      int rc {unify_object(A4, (const char*)s)};
       it->freeStr(s);
       if (rc)
         PL_retry_address((void*)it);
@@ -545,8 +591,8 @@ PREDICATE_NONDET(hdt_term_, 3)
     it = (IteratorUCharString*)PL_foreign_context_address(handle);
   next:
     if (it->hasNext()) {
-      unsigned char *s = it->next();
-      int rc = PL_unify_chars(A3, TERM_TEXT, (size_t)-1, (const char*)s);
+      unsigned char *s {it->next()};
+      int rc = unify_object(A3, (const char*)s);
       it->freeStr(s);
       if (rc)
         PL_retry_address((void*)it);
@@ -597,7 +643,7 @@ PREDICATE(hdt_term_random_, 4)
     size_t index {rnd_between(rnd, min, max)};
     std::string str {dict->idToString(index, role)};
     if (!str.empty())
-      return unify_string(A4, str);
+      return unify_object(A4, str.c_str());
   } CATCH_HDT;
   return FALSE;
 }
@@ -711,15 +757,15 @@ PREDICATE(hdt_term_id_, 4)
     Dictionary *dict = symb->hdt->getDictionary();
     if (!PL_is_variable(A3)) {
       if (PL_get_nchars(A3, &len, &s, CVT_TEXT)) {
-        string str(s);
+        std::string str {s};
         id = dict->stringToId(str, role);
         if (id)
           return (A4 = (long) id); // signed/unsigned mismatch
       }
     } else {
-      string str = dict->idToString((size_t)(long)A4, role);
+      std::string str {dict->idToString((size_t)(long)A4, role)};
       if (!str.empty())
-        return PL_unify_chars(A3, TERM_TEXT, (size_t)-1, str.c_str());
+        return unify_object(A3, str.c_str());
     }
   } CATCH_HDT;
   return FALSE;
@@ -870,9 +916,9 @@ PREDICATE(hdt_triple_random_, 5)
     if (it->hasNext()) {
       TripleString *t {it->next()};
       bool rc =
-        ((!(flags&S_S) || unify_string(A3, t->getSubject())) &&
-          (!(flags&S_P) || unify_string(A4, t->getPredicate())) &&
-          (!(flags&S_O) || unify_string(A5, t->getObject())));
+        ((!(flags&S_S) || unify_nonliteral(A3, t->getSubject().c_str())) &&
+         (!(flags&S_P) || unify_nonliteral(A4, t->getPredicate().c_str())) &&
+         (!(flags&S_O) || unify_object(A5, t->getObject().c_str())));
       delete it;
       return rc;
     }
@@ -906,8 +952,8 @@ PREDICATE(hdt_triple_random_id_, 5)
       TripleID *t {it->next()};
       bool rc =
         ((!(flags&S_S) || PL_unify_integer(A3, t->getSubject())) &&
-          (!(flags&S_P) || PL_unify_integer(A4, t->getPredicate())) &&
-          (!(flags&S_O) || PL_unify_integer(A5, t->getObject())));
+         (!(flags&S_P) || PL_unify_integer(A4, t->getPredicate())) &&
+         (!(flags&S_O) || PL_unify_integer(A5, t->getObject())));
       delete it;
       return rc;
     }
