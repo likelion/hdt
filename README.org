@@ -23,7 +23,7 @@ $ swipl
 After starting [[http://www.swi-prolog.org][SWI-Prolog]], the library is loaded in the following way:
 
 #+BEGIN_SRC sh
-?- [library(hdt11)].
+?- [library(hdt)].
 #+END_SRC
 
 ** Handling files

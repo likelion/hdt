@@ -1,11 +1,11 @@
-:- module(test_hdt_db, []).
-:- reexport(library(semweb/hdt_db)).
+:- module(test_hdt, []).
+:- reexport(library(hdt)).
 
-/** <module> Tests for the HDT library consistent with rdf_db
+/** <module> Tests for the HDT library
 
 @author Wouter Beek
 @author Jan Wielemaker
-@version 2017/09-2017/10
+@version 2017/09-2017/11
 */
 
 :- use_module(library(apply)).
@@ -14,8 +14,9 @@
 :- begin_tests(hdt, [cleanup(delete_hdts)]).
 
 test(hdt_create) :-
-  expand_file_name('test-*.nt', RdfFiles),
-  maplist(hdt_create, RdfFiles, _).
+  expand_file_name('test-*.{nt,ttl}', RdfFiles),
+  maplist(hdt_create, RdfFiles, HdtFiles),
+  maplist(exists_file, HdtFiles).
 
 test(count, [cleanup(hdt_close(Hdt)),
              nondet,
@@ -26,38 +27,45 @@ test(count, [cleanup(hdt_close(Hdt)),
 test(node, [cleanup(hdt_close(Hdt)),
             nondet,
             setup(hdt_open('test-1.hdt', Hdt)),
-            set(Node = ['_:x',literal(type('y:y','x:x'))])]) :-
-  hdt_term(Hdt, node, Node).
+            set(Term = ['_:x',"x:x"^^'y:y'])]) :-
+  hdt_term(Hdt, node, Term).
 
 test(object, [cleanup(hdt_close(Hdt)),
               nondet,
               setup(hdt_open('test-1.hdt', Hdt)),
-              set(O = [literal(type('y:y','x:x'))])]) :-
-  hdt_term(Hdt, object, O).
+              set(Term = ["x:x"^^'y:y'])]) :-
+  hdt_term(Hdt, object, Term).
 
 test(predicate, [cleanup(hdt_close(Hdt)),
                  nondet,
                  setup(hdt_open('test-1.hdt', Hdt)),
-                 set(P = ['x:x'])]) :-
-  hdt_term(Hdt, predicate, P).
+                 set(Term = ['x:x'])]) :-
+  hdt_term(Hdt, predicate, Term).
 
 test(shared, [cleanup(hdt_close(Hdt)),
               nondet,
               setup(hdt_open('test-1.hdt', Hdt)),
-              set(Shared = [])]) :-
-  hdt_term(Hdt, shared, Shared).
+              set(Term = [])]) :-
+  hdt_term(Hdt, shared, Term).
 
 test(subject, [cleanup(hdt_close(Hdt)),
                nondet,
                setup(hdt_open('test-1.hdt', Hdt)),
-               set(S = ['_:x'])]) :-
-  hdt_term(Hdt, subject, S)).
+               set(Term = ['_:x'])]) :-
+  hdt_term(Hdt, subject, Term).
 
-test(hdt, [cleanup(hdt_close(Hdt)),
-           nondet,
-           setup(hdt_open('test-1.hdt', Hdt)),
-           set(Triple == [rdf('_:x','x:x',literal(type('y:y','x:x')))])]) :-
+test(triple, [cleanup(hdt_close(Hdt)),
+              nondet,
+              setup(hdt_open('test-1.hdt', Hdt)),
+              set(Triple == [rdf('_:x','x:x',"x:x"^^'y:y')])]) :-
   hdt_triple(Hdt, S, P, O),
+  Triple = rdf(S,P,O).
+
+test(triple_term, [cleanup(hdt_close(Hdt)),
+                   nondet,
+                   setup(hdt_open('test-1.hdt', Hdt)),
+                   set(Triple == [rdf('_:x','x:x',literal(type('y:y','x:x')))])]) :-
+  hdt_triple_term(Hdt, S, P, O),
   Triple = rdf(S,P,O).
 
 :- end_tests(hdt).
