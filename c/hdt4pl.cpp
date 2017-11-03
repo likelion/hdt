@@ -233,7 +233,7 @@ size_t rnd_between(double rnd, size_t min, size_t max)
      *       PREDICATES    *
      *******************************/
 
-// hdt_open(+File, -Hdt, +Options)
+// hdt_open(-Hdt, +File, +Options)
 PREDICATE(hdt_open_, 3)
 {
   HDT *hdt;
@@ -258,19 +258,19 @@ PREDICATE(hdt_open_, 3)
       return PL_type_error("option", opt);
     }
   }
-  if (!PL_get_file_name(A1, &fileName, PL_FILE_EXIST))
+  if (!PL_get_file_name(A2, &fileName, PL_FILE_EXIST))
     return FALSE;
   try {
     if (access == ATOM_map) {
       if (indexed)
         hdt = HDTManager::mapIndexedHDT(fileName);
       else
-        hdt = HDTManager::mapHDT(A1);
+        hdt = HDTManager::mapHDT(A2);
     } else if (access == ATOM_load) {
       if (indexed)
         hdt = HDTManager::loadIndexedHDT(fileName);
       else
-        hdt = HDTManager::loadHDT(A1);
+        hdt = HDTManager::loadHDT(A2);
     } else {
       PlTerm ex;
       PL_put_atom(ex, access);
@@ -280,7 +280,7 @@ PREDICATE(hdt_open_, 3)
   hdt_wrapper *symb = (hdt_wrapper*)PL_malloc(sizeof(*symb));
   memset(symb, 0, sizeof(*symb));
   symb->hdt = hdt;
-  return PL_unify_blob(A2, symb, sizeof(*symb), &hdt_blob);
+  return PL_unify_blob(A1, symb, sizeof(*symb), &hdt_blob);
 }
 
 
@@ -697,8 +697,8 @@ static int get_dict_section(term_t t, DictionarySection *section)
 }
 
 
-// hdt_term_translate_(+HDT, +Role, ?String, ?Id)
-PREDICATE(hdt_term_translate_, 4)
+// hdt_term_id_(+HDT, +Role, ?String, ?Id)
+PREDICATE(hdt_term_id_, 4)
 {
   hdt_wrapper *symb;
   TripleComponentRole role;
@@ -922,13 +922,13 @@ PREDICATE(hdt_triple_random_id_, 5)
      *******************************/
 
 /**
- * hdt_create_(+HDTFile, +RDFFile, +Options)
+ * hdt_create_from_file_(+HDTFile, +RDFFile, +Options)
  *
  * @tbd Fill HDTSpecification
  * @tbd Allow additional header triples
  */
 
-PREDICATE(hdt_create_, 3)
+PREDICATE(hdt_create_from_file_, 3)
 {
   char *hdt_file, *rdf_file;
   HDTSpecification spec;

@@ -3,27 +3,26 @@
   [
   % RDF/HDT
     hdt_close/1,            % +Hdt
-    hdt_create/1,           % +RdfFile
-    hdt_create/2,           % +RdfFile, -HdtFile
-    hdt_create/3,           % +RdfFile, -HdtFile, +Options
-    hdt_open/2,             % +HdtFile, -Hdt
+    hdt_create_from_file/2, % +HdtFile, ?RdfFile
+    hdt_create_from_file/3, % +HdtFile, ?RdfFile, +Options
+    hdt_open/2,             % +Hdt, -HdtFile
+    hdt_open/3,             % +Hdt, -HdtFile, +Options
     hdt_property/2,         % +Hdt, ?Property
   % TERMS
-    hdt_atom_to_term/2,     % +Atom, -Term
     hdt_term/3,             % +Hdt, +Role, ?Term
     hdt_term/4,             % +Hdt, +Role, -LeafRole, ?Term
     hdt_term_count/3,       % +Hdt, +Role, ?Count
+    hdt_term_id/4,          % +Hdt, +Role, ?Term, ?IdTerm
     hdt_term_prefix/4,      % +Hdt, +Role, +Prefix, ?Term
     hdt_term_prefix/5,      % +Hdt, +Role, +Prefix, -LeafRole, ?Term
     hdt_term_random/3,      % +Hdt, +Role, -Term
     hdt_term_random/4,      % +Hdt, +Role, -LeafRole, -Term
-    hdt_term_translate/4,   % +Hdt, +Role, ?Term, ?Id
   % TRIPLES
+    hdt/4,                  % +Hdt, ?S, ?P, ?O
     hdt_triple/4,           % +Hdt, ?S, ?P, ?O
     hdt_triple_count/5,     % +Hdt, ?S, ?P, ?O, ?Count
+    hdt_triple_id/3,        % +Hdt, ?TermTriple, ?IdTriple
     hdt_triple_random/4,    % +Hdt, ?S, ?P, ?O
-    hdt_triple_term/4,      % +Hdt, ?S, ?P, ?O
-    hdt_triple_translate/3, % +Hdt, ?TermTriple, ?IdTriple
   % OPERATORS
     op(110, xfx, @),        % must be above `.'
     op(650, xfx, ^^)        % must be above `:'
@@ -60,6 +59,7 @@
    hdt_term_prefix(+, +, +, o),
    hdt_term_prefix(+, +, +, -, o),
    hdt_term_translate(+, o, ?),
+   hdt(+, r, r, o),
    hdt_triple(+, r, r, o),
    hdt_triple_count(+, r, r, o, ?),
    hdt_triple_random(+, r, r, o),
@@ -80,9 +80,8 @@ hdt_close(Hdt) :-
 
 
 
-%! hdt_create(+RdfFile) is det.
-%! hdt_create(+RdfFile, ?HdtFile:atom) is det.
-%! hdt_create(+RdfFile, ?HdtFile:atom, +Options:list(compound)) is det.
+%! hdt_create_from_file(?HdtFile:atom, +RdfFile) is det.
+%! hdt_create_from_file(?HdtFile:atom, +RdfFile, +Options:list(compound)) is det.
 %
 % Create an HDT file from an uncompressed N-Triples file.
 %
@@ -92,15 +91,11 @@ hdt_close(Hdt) :-
 %
 %    The base URI that is used for generating HDT header properties.
 
-hdt_create(RdfFile) :-
-  hdt_create(RdfFile, _).
+hdt_create_from_file(HdtFile, RdfFile) :-
+  hdt_create_from_file(HdtFile, RdfFile, []).
 
 
-hdt_create(RdfFile, HdtFile) :-
-  hdt_create(RdfFile, HdtFile, []).
-
-
-hdt_create(RdfFile, HdtFile, Options1) :-
+hdt_create_from_file(HdtFile, RdfFile, Options1) :-
   % Determine the serialization format of the RDF file.
   ignore(option(format(Format), Options1)),
   (   ground(Format)
@@ -130,7 +125,7 @@ hdt_create(RdfFile, HdtFile, Options1) :-
   (ground(BaseUri) -> true ; uri_file_name(BaseUri, HdtFile)),
 
   merge_options([base_uri(BaseUri)], Options2, Options3),
-  hdt_create_(HdtFile, RdfFile, Options3).
+  hdt_create_from_file_(HdtFile, RdfFile, Options3).
 
 extension_format(n3, n3).
 extension_format(nq, nquads).
@@ -139,8 +134,8 @@ extension_format(ttl, turtle).
 
 
 
-%! hdt_open(+HdtFile:atom, -Hdt:blob) is det.
-%! hdt_open(+HdtFile:atom, -Hdt:blob, +Options:list(compound)) is det.
+%! hdt_open(-Hdt:blob, +HdtFile:atom) is det.
+%! hdt_open(-Hdt:blob, +HdtFile:atom, +Options:list(compound)) is det.
 %
 % Opens an existing HDT file `HdtFile', and unifies `Hdt' with a
 % direct handle to it.
@@ -167,12 +162,12 @@ extension_format(ttl, turtle).
 %      The index is maintained in a file with extension `.index` in
 %      the same directory as the HDT file.
 
-hdt_open(HdtFile, Hdt) :-
-  hdt_open(HdtFile, Hdt, []).
+hdt_open(Hdt, HdtFile) :-
+  hdt_open(Hdt, HdtFile, []).
 
 
-hdt_open(HdtFile, Hdt, Options) :-
-  hdt_open_(HdtFile, Hdt, Options).
+hdt_open(Hdt, HdtFile, Options) :-
+  hdt_open_(Hdt, HdtFile, Options).
 
 
 
@@ -367,11 +362,11 @@ index_role(N1, [H|T1], [_|T2], Role) :-
 
 
 
-%! hdt_term_translate(+Hdt:blob, +Role:atom, ?Term:rdf_term, ?Id:compound) is det.
+%! hdt_term_id(+Hdt:blob, +Role:atom, ?Term:rdf_term, ?Id:compound) is det.
 
-hdt_term_translate(Hdt, Role, Term, Id) :-
+hdt_term_id(Hdt, Role, Term, Id) :-
   pre_term(Hdt, Term, Atom),
-  hdt_term_translate_(Hdt, Role, Atom, Id),
+  hdt_term_id_(Hdt, Role, Atom, Id),
   hdt_atom_to_term(Atom, Term).
 
 
@@ -379,6 +374,15 @@ hdt_term_translate(Hdt, Role, Term, Id) :-
 
 
 % TRIPLES %
+
+%! hdt(+Hdt:blob, ?S:rdf_nonliteral, ?P:rdf_iri, ?O:rdf_term) is nondet.
+%
+% @see Wrapper around hdt_triple/4.
+
+hdt(Hdt, S, P, O) :-
+  hdt_triple(Hdt, S, P, O).
+
+
 
 %! hdt_triple(+Hdt:blob, ?S:rdf_nonliteral, ?P:rdf_iri, ?O:rdf_term) is nondet.
 %
@@ -400,6 +404,20 @@ hdt_triple_count(_, _, _, _, 0).
 
 
 
+%! hdt_triple_id(+Hdt:blob, +TermTriple:rdf_term, -IdTriple:compound) is det.
+%! hdt_triple_id(+Hdt:blob, -TermTriple:rdf_term, +IdTriple:compound) is det.
+
+hdt_triple_id(
+  Hdt,
+  rdf(S,P,O),
+  rdf(id(subject,SId),id(predicate,PId),id(object,OId))
+) :-
+  hdt_term_id(Hdt, subject, S, SId),
+  hdt_term_id(Hdt, predicate, P, PId),
+  hdt_term_id(Hdt, object, O, OId).
+
+
+
 %! hdt_triple_random(+Hdt:blob, ?S, ?P, ?O) is semidet.
 
 hdt_triple_random(Hdt, S, P, O) :-
@@ -410,14 +428,14 @@ hdt_triple_random(Hdt, S, P, O) :-
 
 
 
-%! hdt_triple_term(+Hdt:blob, ?S, ?P, ?O) is nondet.
+%! hdt_triple_uninterpreted(+Hdt:blob, ?S, ?P, ?O) is nondet.
 %
 % True if 〈S,P,O〉 is a triple in Hdt, where object O is an
 % uninterpreted Prolog compound term of the form
 % `literal(lang(LTag:atom,Lex:atom))` or
 % `literal(type(D:atom,Lex:atom))`.
 
-hdt_triple_term(Hdt, S, P, O) :-
+hdt_triple_uninterpreted(Hdt, S, P, O) :-
   pre_term(Hdt, O, OAtom),
   hdt_triple_(Hdt, content, S, P, OAtom),
   (   atom_codes(OAtom, OCodes1),
@@ -426,38 +444,13 @@ hdt_triple_term(Hdt, S, P, O) :-
   ;   O = OAtom
   ).
 
-uninterpreted_literal_codes(
-  literal(lang(LTagCodes,LexCodes)),
-  literal(lang(LTag,Lex))
-) :- !,
+uninterpreted_literal_codes(literal(lang(LTagCodes,LexCodes)), Lex@LTag) :- !,
   maplist(atom_codes, [LTag,Lex], [LTagCodes,LexCodes]).
-uninterpreted_literal_codes(
-  literal(type(DCodes,LexCodes)),
-  literal(type(D,Lex))
-) :- !,
+uninterpreted_literal_codes(literal(type(DCodes,LexCodes)), Lex^^D) :- !,
   maplist(atom_codes, [D,Lex], [DCodes,LexCodes]).
-uninterpreted_literal_codes(
-  literal(LexCodes),
-  literal(Lex)
-) :-
-  atom_codes(Lex, LexCodes).
-
-
-
-%! hdt_triple_translate(+Hdt:blob, +TermTriple:rdf_term, -IdTriple:compound) is det.
-%! hdt_triple_translate(+Hdt:blob, -TermTriple:rdf_term, +IdTriple:compound) is det.
-
-hdt_triple_translate(
-  Hdt,
-  rdf(S,P,O),
-  rdf(id(subject,SId),id(predicate,PId),id(object,OId))
-) :-
-  maplist(
-    hdt_term_translate(Hdt),
-    [subject,predicate,object],
-    [S,P,O],
-    [SId,PId,OId]
-  ).
+uninterpreted_literal_codes(literal(LexCodes), Literal) :-
+  atom_codes(Lex, LexCodes),
+  rdf_global_object(Literal, Lex^^xsd:string).
 
 
 
