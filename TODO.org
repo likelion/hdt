@@ -24,6 +24,22 @@ formulated in our recent SEMANTiCS paper on /LOD-a-lot/.
 Specifically, the new functionality introduced in this document will
 enable several use cases that are currently blocked in MaestroGraph.
 
+* Literals: lexical forms or values?
+
+Benefits of values:
+  - The user does not have to think about when to interet a lexical
+    form into a value: this is done automatically upon binding a
+    literal term.
+
+Benefits of lexical forms:
+  - Speed.
+  - The ability to navigate an RDF graph with non-canonical literals
+    (see example below).
+
+#+BEGIN_SRC prolog
+?- hdt_triple(Hdt, S, P, O), hdt_triple(Hdt, S, P, O).
+#+END_SRC
+
 * API proposal
 ** Predicates for working with HDT files
 

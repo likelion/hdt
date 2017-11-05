@@ -385,17 +385,37 @@ hdt_triple_id(
 
 
 
-%! hdt_triple_lexical(+Hdt:blob, ?S, ?P, ?O) is nondet.
+%! hdt_triple_lexical(+Hdt:blob, ?S, ?P, ?OLex) is nondet.
 %
 % True if 〈S,P,O〉 is a triple in Hdt, where object O is an
 % uninterpreted Prolog compound term of the form
 % `literal(lang(LTag:atom,Lex:atom))` or
 % `literal(type(D:atom,Lex:atom))`.
 
-hdt_triple_lexical(Hdt, S, P, O) :-
-  pre_term(Hdt, O, OHdt),
+hdt_triple_lexical(Hdt, S, P, OLex) :-
+  pre_term_lexical(OLex, OHdt),
   hdt_triple_(Hdt, content, S, P, OHdt),
-  O = OHdt.
+  post_term_lexical(OHdt, OLex).
+
+% non-literal
+pre_term_lexical(OLex, OHdt) :-
+  atom(OLex), \+ boolean(OLex), !,
+  OHdt = OLex.
+% typed literal
+pre_term_lexical(Lex^^D, OHdt) :-
+  ground(Lex^^D), !,
+  atomics_to_string(["\"",Lex,"\"^^<",D,">"], OHdt).
+% language-tagged string
+pre_term_lexical(Lex@LTag, OHdt) :-
+  ground(Lex@LTag), !,
+  atomics_to_string(["\"",Lex,"\"@",LTag], OHdt).
+% not an RDF term (e.g., variable)
+pre_term_lexical(_, _).
+
+post_term_lexical(_, OLex) :-
+  ground(OLex), !.
+post_term_lexical(OHdt, OLex) :-
+  OLex = OHdt.
 
 
 
@@ -457,6 +477,12 @@ post_term(OHdt, O) :-
 % This helper predicate implements the feature that literals can be
 % entered partially.  Specifically, it is possible to only supply
 % their lexical form, and match their language tag or datatype IRI.
+%
+% From RDF terms to HDT terms:
+%   - non-literal → non-literal
+%   - literal → hdt-atom (e.g.,
+%     `"\"1\"^^<http://www.w3.org/2001/XMLSchema#integer>"`
+%   - var → var
 
 % non-literal
 pre_term(_, O1, O2) :-
