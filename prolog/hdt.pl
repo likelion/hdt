@@ -393,8 +393,8 @@ hdt_triple_id(
 % `literal(type(D:atom,Lex:atom))`.
 
 hdt_triple_lexical(Hdt, S, P, O) :-
-  pre_term(Hdt, O, O),
-  hdt_triple_(Hdt, content, S, P, O).
+  pre_term(Hdt, O, OAtom),
+  hdt_triple_(Hdt, content, S, P, OAtom).
 
 
 
