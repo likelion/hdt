@@ -227,30 +227,30 @@ hdt_term(Hdt, predicate, predicate, Term) :-
 % shared
 hdt_term(Hdt, shared, shared, Term) :-
   (   var(Term)
-  ->  hdt_term_(Hdt, shared, Atom)
-  ;   pre_term(Hdt, Term, Atom),
-      hdt_triple_(Hdt, content, Atom, _, _),
-      hdt_triple_(Hdt, content, _, _, Atom)
+  ->  hdt_term_(Hdt, shared, OTerm)
+  ;   pre_term(Hdt, Term, OTerm),
+      hdt_triple_(Hdt, content, OTerm, _, _),
+      hdt_triple_(Hdt, content, _, _, OTerm)
   ),
-  post_term(Atom, Term).
+  post_term(OTerm, Term).
 % sink
 hdt_term(Hdt, sink, sink, Term) :-
   (   var(Term)
-  ->  hdt_term_(Hdt, sink, Atom)
-  ;   pre_term(Hdt, Term, Atom),
-      hdt_triple_(Hdt, content, _, _, Atom),
-      \+ hdt_triple_(Hdt, content, Atom, _, _)
+  ->  hdt_term_(Hdt, sink, OTerm)
+  ;   pre_term(Hdt, Term, OTerm),
+      hdt_triple_(Hdt, content, _, _, OTerm),
+      \+ hdt_triple_(Hdt, content, OTerm, _, _)
   ),
-  post_term(Atom, Term).
+  post_term(OTerm, Term).
 % source
 hdt_term(Hdt, source, source, Term) :-
   (   var(Term)
-  ->  hdt_term_(Hdt, source, Atom)
-  ;   pre_term(Hdt, Term, Atom),
-      hdt_triple_(Hdt, content, Atom, _, _),
-      \+ hdt_triple_(Hdt, content, _, _, Atom)
+  ->  hdt_term_(Hdt, source, OTerm)
+  ;   pre_term(Hdt, Term, OTerm),
+      hdt_triple_(Hdt, content, OTerm, _, _),
+      \+ hdt_triple_(Hdt, content, _, _, OTerm)
   ),
-  post_term(Atom, Term).
+  post_term(OTerm, Term).
 % others: node, object, subject, term
 hdt_term(Hdt, Role, LeafRole, Term) :-
   role_subrole(Role, SubRole),
@@ -356,17 +356,17 @@ hdt(Hdt, S, P, O) :-
 % True if 〈S,P,O〉 is a triple in Hdt.
 
 hdt_triple(Hdt, S, P, O) :-
-  pre_term(Hdt, O, OAtom),
-  hdt_triple_(Hdt, content, S, P, OAtom),
-  post_term(OAtom, O).
+  pre_term(Hdt, O, OHdt),
+  hdt_triple_(Hdt, content, S, P, OHdt),
+  post_term(OHdt, O).
 
 
 
 %! hdt_triple_count(+Hdt:blob, ?S:rdf_nonliteral, ?P:rdf_iri, ?O:rdf_term, -Count:nonneg) is det.
 
 hdt_triple_count(Hdt, S, P, O, Count) :-
-  pre_term(Hdt, O, OAtom),
-  hdt_count_(Hdt, S, P, OAtom, Count), !.
+  pre_term(Hdt, O, OHdt),
+  hdt_count_(Hdt, S, P, OHdt, Count), !.
 hdt_triple_count(_, _, _, _, 0).
 
 
@@ -393,18 +393,19 @@ hdt_triple_id(
 % `literal(type(D:atom,Lex:atom))`.
 
 hdt_triple_lexical(Hdt, S, P, O) :-
-  pre_term(Hdt, O, OAtom),
-  hdt_triple_(Hdt, content, S, P, OAtom).
+  pre_term(Hdt, O, OHdt),
+  hdt_triple_(Hdt, content, S, P, OHdt),
+  O = OHdt.
 
 
 
 %! hdt_triple_random(+Hdt:blob, ?S, ?P, ?O) is semidet.
 
 hdt_triple_random(Hdt, S, P, O) :-
-  pre_term(Hdt, O, OAtom),
+  pre_term(Hdt, O, OHdt),
   Rnd is random_float,
-  hdt_triple_random_(Hdt, Rnd, S, P, OAtom),
-  post_term(OAtom, O).
+  hdt_triple_random_(Hdt, Rnd, S, P, OHdt),
+  post_term(OHdt, O).
 
 
 
@@ -436,12 +437,18 @@ leafrole(Role) :-
 
 
 
-%! post_term(+Atom:atom, -Term:rdf_term) is det.
+%! post_term(+OHdt:compound, -Term:rdf_term) is det.
 
-post_term(String@LTag, String@LTag) :- !.
-post_term(Lex^^D, Value^^D) :- !,
-  rdf11:out_type(D, Value, Lex).
-post_term(NonLiteral, NonLiteral).
+% no new binding
+post_term(_, Term) :-
+  ground(Term), !.
+% non-literal
+post_term(OHdt, O) :-
+  atom(OHdt), !,
+  O = OHdt.
+% literal
+post_term(OHdt, O) :-
+  rdf_canonical_literal(OHdt, O).
 
 
 
@@ -451,31 +458,35 @@ post_term(NonLiteral, NonLiteral).
 % entered partially.  Specifically, it is possible to only supply
 % their lexical form, and match their language tag or datatype IRI.
 
-pre_term(_, Var, _) :-
-  var(Var), !.
-% language-tagged string
-pre_term(Hdt, Lex@LTag, Atom) :-
-  ground(Lex), !,
-  (   var(LTag)
-  ->  % Match a language-tagged string whose language tag is unbound.
-      atomic_list_concat(['"',Lex,'"@'], Prefix),
-      hdt_term_prefix_(Hdt, sink, Prefix, O),
-      pre_term(Hdt, O, Atom)
-  ;   atomic_list_concat(['"',Lex,'"@',LTag], Atom)
-  ).
+% non-literal
+pre_term(_, O1, O2) :-
+  atom(O1), \+ boolean(O1), !,
+  O2 = O1.
 % typed literal
-pre_term(Hdt, Val^^D, Atom) :-
+pre_term(Hdt, Val^^D, OHdt) :-
   ground(Val), !,
   rdf_lexical_form(Val^^D, Lex^^D),
   (   var(D)
   ->  % Match a typed literal whose datatype IRI is unbound.
-      atomic_list_concat(['"',Lex,'"^^<'], Prefix),
-      hdt_term_prefix_(Hdt, sink, Prefix, O),
-      pre_term(Hdt, O, Atom)
-  ;   atomic_list_concat(['"',Lex,'"^^<',D,>], Atom)
+      atomics_to_string(["\"",Lex,"\"^^<"], Prefix),
+      hdt_term_prefix_(Hdt, sink, Prefix, OHdt)
+  ;   atomics_to_string(["\"",Lex,"\"^^<",D,">"], OHdt)
   ).
-% non-literal
-pre_term(_, Atom, Atom).
+% language-tagged string
+pre_term(Hdt, Lex@LTag, OHdt) :-
+  ground(Lex), !,
+  (   var(LTag)
+  ->  % Match a language-tagged string whose language tag is unbound.
+      atomics_to_string(["\"",Lex,"\"@"], Prefix),
+      hdt_term_prefix_(Hdt, sink, Prefix, O),
+      pre_term(Hdt, O, OHdt)
+  ;   atomics_to_string(["\"",Lex,"\"@",LTag], OHdt)
+  ).
+% not an RDF term (e.g., variable)
+pre_term(_, _, _).
+
+boolean(false).
+boolean(true).
 
 
 

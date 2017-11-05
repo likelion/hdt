@@ -1,5 +1,4 @@
 :- module(test_hdt, []).
-:- reexport(library(hdt)).
 
 /** <module> Tests for the HDT library
 
@@ -8,7 +7,9 @@
 @version 2017/09-2017/11
 */
 
+:- use_module(library(aggregate)).
 :- use_module(library(apply)).
+:- use_module(library(hdt)).
 :- use_module(library(plunit)).
 
 :- begin_tests(hdt, [cleanup(delete_hdts)]).
@@ -61,12 +62,24 @@ test(triple, [cleanup(hdt_close(Hdt)),
   hdt_triple(Hdt, S, P, O),
   Triple = rdf(S,P,O).
 
-test(triple_lexical, [cleanup(hdt_close(Hdt)),
-                      nondet,
-                      setup(hdt_open(Hdt, 'test-1.hdt')),
-                      set(Triple == [rdf('_:x','x:x',"x:x"^^'y:y')])]) :-
+test(triple_lex, [cleanup(hdt_close(Hdt)),
+                  nondet,
+                  setup(hdt_open(Hdt, 'test-1.hdt')),
+                  set(Triple == [rdf('_:x','x:x',"x:x"^^'y:y')])]) :-
   hdt_triple_lexical(Hdt, S, P, O),
   Triple = rdf(S,P,O).
+
+test(integer, [cleanup(hdt_close(Hdt)),
+               nondet,
+               setup(hdt_open(Hdt, 'test-3.hdt')),
+               set(O = [1^^'http://www.w3.org/2001/XMLSchema#integer'])]) :-
+  hdt_triple(Hdt, _, _, O).
+
+test(integer_lex, [cleanup(hdt_close(Hdt)),
+                   nondet,
+                   setup(hdt_open(Hdt, 'test-3.hdt')),
+                   set(O = ["1"^^'http://www.w3.org/2001/XMLSchema#integer'])]) :-
+  hdt_triple_lexical(Hdt, _, _, O).
 
 :- end_tests(hdt).
 
