@@ -186,8 +186,11 @@ hdt_open(Hdt, HdtFile, Options) :-
 %    * objects(-Count))
 %    * predicates(-Count))
 %    * shared(-Count))
+%    * source(-Uri)
 %    * subjects(-Count))
 
+hdt_property(Hdt, source(Uri)) :-
+  once(hdt_triple_(Hdt, header, Uri, _, _)).
 hdt_property(Hdt, Property) :-
   hdt_property(Property),
   hdt_property_(Hdt, Property).
