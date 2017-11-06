@@ -267,10 +267,8 @@ hdt_term(Hdt, Role, LeafRole, Term) :-
 % object, predicate, shared, subject
 hdt_term_count(Hdt, Role, N) :-
   header_role_property(Role, P), !,
-  once(hdt_triple_(Hdt, header, _, P, Atom1)),
-  atom_concat('"', Atom2, Atom1),
-  atom_concat(Lex, '"', Atom2),
-  atom_number(Lex, N).
+  once(hdt_triple_(Hdt, header, _, P, Lex)),
+  number_string(N, Lex).
 % sink
 hdt_term_count(Hdt, sink, N) :- !,
   maplist(hdt_term_count(Hdt), [shared,subject], [N1,N2]),

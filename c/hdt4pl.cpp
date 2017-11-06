@@ -225,8 +225,8 @@ hdt_error(const char *e)
 size_t rnd_between(double rnd, size_t min, size_t max)
 {
   size_t index {static_cast<size_t>(round(rnd * (max - min)) + 1)};
-  //std::cout.imbue(std::locale(""));
-  //std::cout << index << " from [" << min << " ... " << max << "]\n";
+  std::cout.imbue(std::locale(""));
+  std::cout << index << " from [" << min << " ... " << max << "]\n";
   return index;
 }
 
@@ -901,10 +901,10 @@ PREDICATE(hdt_triple_random_, 5)
   char *s, *p, *o;
   double rnd;
   if (!get_hdt(A1, &symb) ||
-       !PL_get_float(A2, &rnd) ||
-       !get_hdt_string(A3, &s, S_S, &flags) ||
-       !get_hdt_string(A4, &p, S_P, &flags) ||
-       !get_hdt_string(A5, &o, S_O, &flags))
+      !PL_get_float(A2, &rnd) ||
+      !get_hdt_string(A3, &s, S_S, &flags) ||
+      !get_hdt_string(A4, &p, S_P, &flags) ||
+      !get_hdt_string(A5, &o, S_O, &flags))
     return FALSE;
   try {
     IteratorTripleString *it {symb->hdt->search(s,p,o)};
