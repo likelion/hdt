@@ -7,3 +7,5 @@ buildenv.sh
 *.hdt
 *.hdt.index*
 *.nt
+*.log
+build
